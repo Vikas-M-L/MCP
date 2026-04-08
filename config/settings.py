@@ -1,0 +1,63 @@
+"""
+Central configuration loaded from .env via pydantic-settings.
+All modules import get_settings() to access config — never use os.environ directly.
+"""
+from functools import lru_cache
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+    # ── OpenRouter LLM ────────────────────────────────────────────────────────
+    openrouter_api_key: str = ""
+    openrouter_model: str = "qwen/qwen3-6b:free"
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+
+    # ── Redis ─────────────────────────────────────────────────────────────────
+    redis_url: str = "redis://localhost:6379/0"
+
+    # ── ChromaDB ──────────────────────────────────────────────────────────────
+    chroma_persist_path: str = "./chroma_data"
+    chroma_embedding_model: str = "all-MiniLM-L6-v2"
+
+    # ── MCP Server ────────────────────────────────────────────────────────────
+    mcp_server_host: str = "127.0.0.1"
+    mcp_server_port: int = 8000
+
+    # ── FastAPI Dashboard ─────────────────────────────────────────────────────
+    dashboard_port: int = 8080
+
+    # ── Google OAuth ──────────────────────────────────────────────────────────
+    google_credentials_path: str = "./credentials.json"
+    google_token_path: str = "./token.json"
+
+    # ── Filesystem ────────────────────────────────────────────────────────────
+    fs_allowed_root: str = "./sandbox"
+
+    # ── Twilio ────────────────────────────────────────────────────────────────
+    twilio_account_sid: str = ""
+    twilio_auth_token: str = ""
+    twilio_from_number: str = ""
+    twilio_to_number: str = ""
+
+    # ── Observer ──────────────────────────────────────────────────────────────
+    observer_poll_interval: int = 60
+
+    @property
+    def mcp_sse_url(self) -> str:
+        return f"http://{self.mcp_server_host}:{self.mcp_server_port}/sse"
+
+    @property
+    def twilio_enabled(self) -> bool:
+        return bool(self.twilio_account_sid and self.twilio_auth_token)
+
+
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    return Settings()
