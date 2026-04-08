@@ -126,6 +126,10 @@ class RedisClient:
         """Check if event_id has been seen within the last 24 hours."""
         return bool(await self._redis.exists(f"seen_event:{event_id}"))
 
+    async def clear_event_seen(self, event_id: str) -> None:
+        """Remove a single event from the dedup cache (used by demo seed scripts)."""
+        await self._redis.delete(f"seen_event:{event_id}")
+
     # ── Activity log (all agents write, dashboard reads) ─────────────────────
 
     async def append_activity_log(self, entry: dict[str, Any]) -> None:

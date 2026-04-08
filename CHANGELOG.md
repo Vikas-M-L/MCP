@@ -10,6 +10,47 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.2.0] — 2026-04-08
+
+### Fixed
+
+- **`planner_agent.py` — `emails:all` never populated in live pipeline**: the planner never called `redis.push_email_record()`, so the dashboard email list was permanently blank when running `main.py`. Plans are now stored in `emails:all` immediately after `push_approval()`.
+- **`executor_agent.py` — `emails:all` not updated by Executor**: `_auto_execute`, `_push_to_dashboard`, and `_silent_discard` all now call `push_email_record()` so the email list reflects every routed plan regardless of confidence.
+- **`planner_agent.py` — plans missing critical dashboard UI fields**: live plans lacked `subject`, `from_addr`, `snippet`, `priority`, `urgency_keywords`, and `call_text`. Dashboard cards showed blank subjects and empty sender fields. All fields are now populated from the event payload before storing.
+- **`planner_agent.py` — scoring field mismatch**: the planner stored `scoring_details` with keys `base_confidence`, `urgency_multiplier`, `history_multiplier`, but the dashboard template read `item.scoring?.base`, `item.scoring?.urgency_mult`, `item.scoring?.history_mult`. Renamed key to `scoring` and aligned inner key names.
+- **`tests/seed_events.py` — stale dedup clearing**: `r.srem("seen:event_ids", event_id)` was a no-op after the dedup system was migrated to individual `seen_event:<id>` keys. Fixed to `r.delete(f"seen_event:{event_id}")`.
+- **`utils/notifier.py` — `call_text` ignored**: `_build_message()` always generated a generic script even when `plan["call_text"]` contained a fully crafted contextual message. `notify()` now uses `plan["call_text"]` when present.
+
+### Added
+
+- **Dashboard — Analytics tab**: confidence distribution bar chart (pure CSS), auto-execute rate, average confidence, priority/response breakdown, queue depth indicators. Powered by `/api/metrics`.
+- **Dashboard — Inject Event tab**: form to push synthetic email, calendar, or filesystem events directly into `events:queue` without Google OAuth. Supports urgency flag to boost Planner confidence. Ideal for live demos.
+- **Dashboard — Preferences tab**: lists all ChromaDB user-preference documents and provides an "Add Preference" form that calls `POST /api/preferences`.
+- **Dashboard — Test Call button**: placed in the page header; triggers `POST /api/twilio/test` and shows a toast with the Twilio call SID or simulation details.
+- **Dashboard — Navigation tabs**: the single-page app is now tabbed (Approvals / Analytics / Inject Event / Preferences) using pure JS show/hide — no page reload.
+- **`GET /api/metrics`**: returns `total`, `by_priority`, `by_response`, `avg_confidence`, `confidence_distribution` (histogram), and `queue_depths`.
+- **`GET /api/preferences`**: lists all ChromaDB `user_preferences` collection documents with metadata.
+- **`POST /api/preferences`**: adds a natural-language preference statement with a configurable category.
+- **`POST /api/events/inject`**: injects a synthetic event (email, calendar, or filesystem) into `events:queue` and broadcasts a WebSocket notification.
+- **`POST /api/twilio/test`**: places a real Twilio test call or returns a simulation payload if credentials are absent.
+- **`GET /ws`** — WebSocket endpoint: a `ConnectionManager` broadcasts `{"type":"refresh"}` to all connected clients when plans are approved, rejected, or injected. Dashboard JS connects on load and falls back to 8 s polling.
+- **`planner_agent.py` — `_build_call_text()`**: module-level helper that builds a contextual Twilio call script from the event and plan, including priority label, from address, subject, action, reason, and routing outcome.
+- **`planner_agent.py` — LLM `priority` field**: the LLM schema now includes a `priority` field (`high`/`medium`/`low`) so the Planner classifies email importance from content rather than solely from the confidence score.
+- **`memory/redis_client.py` — `clear_event_seen()`**: new helper to delete a single `seen_event:<id>` key; used by demo seed scripts to reset deduplication for specific events.
+- **`config/settings.py` — `huggingface_token` field**: HuggingFace token is now a proper pydantic-settings field instead of being read directly from `os.environ` in `chroma_memory.py`.
+- **`requirements.txt` — `websockets>=12.0`**: added explicit dependency required by FastAPI's WebSocket support.
+- **`.env.example` — `HUGGINGFACE_TOKEN`**: added with inline comment; grouped near OpenRouter LLM settings.
+
+### Changed
+
+- **`config/settings.py`** — default `openrouter_model` updated from `qwen/qwen3-6b:free` to `openai/gpt-oss-20b:free` to match the recommended model.
+- **`.env.example`** — `HUGGINGFACE_TOKEN` moved next to OpenRouter keys (logical grouping); default model updated.
+- **`executor_agent.py` — activity log messages** now include the plan's `subject` (first 40 chars) for easier log scanning.
+- **Dashboard WebSocket client** replaces `setInterval(refresh, 3000)` with instant server-push; polling fallback interval extended to 8 s.
+- **`api/dashboard.py`** — `approve_action` and `reject_action` now call `manager.broadcast()` after mutating state, so all connected dashboards refresh immediately.
+
+---
+
 ## [1.1.0] — 2026-04-08
 
 ### Fixed
@@ -61,6 +102,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-[Unreleased]: https://github.com/your-org/personal-os-agent/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/your-org/personal-os-agent/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/your-org/personal-os-agent/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/your-org/personal-os-agent/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/your-org/personal-os-agent/releases/tag/v1.0.0

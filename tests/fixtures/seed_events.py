@@ -109,9 +109,9 @@ async def seed(redis_url: str = "redis://localhost:6379/0", n: int | None = None
         print("[Seed] Start Redis with: redis-server  or  docker run -p 6379:6379 redis")
         return
 
-    # Clear old demo events to avoid duplicates
+    # Clear old demo events from the per-key dedup store (seen_event:<id>)
     for event in events_to_seed:
-        await r.srem("seen:event_ids", event["event_id"])
+        await r.delete(f"seen_event:{event['event_id']}")
 
     # Push events
     for i, event in enumerate(events_to_seed, 1):

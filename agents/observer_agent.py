@@ -18,6 +18,24 @@ URGENCY_KEYWORDS = [
     "overdue", "emergency", "important", "action required", "must",
 ]
 
+# ── Manual poll trigger ────────────────────────────────────────────────────────
+# The dashboard POST /api/poll/now calls trigger_immediate_poll() to wake the
+# Observer early instead of waiting for the full poll interval.
+_poll_trigger: asyncio.Event | None = None
+
+
+def get_poll_trigger() -> asyncio.Event:
+    """Return the module-level poll trigger, creating it lazily on first call."""
+    global _poll_trigger
+    if _poll_trigger is None:
+        _poll_trigger = asyncio.Event()
+    return _poll_trigger
+
+
+async def trigger_immediate_poll() -> None:
+    """Wake the Observer immediately — used by /api/poll/now."""
+    get_poll_trigger().set()
+
 
 class ObserverAgent(BaseAgent):
     def __init__(self) -> None:
@@ -87,7 +105,33 @@ class ObserverAgent(BaseAgent):
             except Exception as exc:
                 self.logger.error("observer_poll_error", error=str(exc))
 
-            await asyncio.sleep(interval)
+            # Wait for next cycle — but allow the dashboard to wake us early via
+            # /api/poll/now (sets the module-level _poll_trigger Event).
+            # Using asyncio.wait() instead of asyncio.wait_for() to avoid
+            # cancellation edge-cases in Python 3.11 when the outer task
+            # is cancelled during the timeout cleanup phase.
+            trigger = get_poll_trigger()
+            trigger.clear()
+            try:
+                sleep_task   = asyncio.create_task(asyncio.sleep(float(interval)))
+                trigger_task = asyncio.create_task(trigger.wait())
+                done, pending = await asyncio.wait(
+                    {sleep_task, trigger_task},
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+                for t in pending:
+                    t.cancel()
+                    try:
+                        await t
+                    except (asyncio.CancelledError, Exception):
+                        pass
+                if trigger_task in done:
+                    self.logger.info("observer_manual_poll_triggered")
+                    print("[Observer] Manual poll triggered — running cycle now")
+            except asyncio.CancelledError:
+                raise  # propagate to start() for graceful shutdown
+            except Exception:
+                pass  # never let the sleep phase crash the observer loop
 
     # ── Polling ───────────────────────────────────────────────────────────────
 

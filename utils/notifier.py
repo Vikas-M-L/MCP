@@ -34,8 +34,27 @@ class Notifier:
                 self._twilio_client = None
 
     async def notify(self, plan: dict[str, Any], result: dict[str, Any]) -> None:
-        """Route to real Twilio call or simulation based on configuration."""
-        message = self._build_message(plan, result)
+        """Route to real Twilio call or simulation based on configuration.
+
+        Phone calls are only placed for high-priority plans — medium/low priority
+        plans are logged but do not trigger a call to avoid notification fatigue.
+        """
+        priority = (plan.get("priority") or "").lower()
+        if priority != "high":
+            logger.info(
+                "call_skipped_low_priority",
+                plan_id=plan.get("id"),
+                action=plan.get("action"),
+                priority=priority,
+            )
+            print(
+                f"[Notifier] Skipping call — priority is '{priority}' "
+                f"(calls only sent for high-priority)"
+            )
+            return
+
+        # Prefer the pre-built call_text crafted by the Planner (more contextual)
+        message = plan.get("call_text") or self._build_message(plan, result)
         if self._twilio_client:
             await self._make_real_call(message, plan)
         else:

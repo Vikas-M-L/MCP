@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PersonalOS — SOLARIS X 2026</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div id="toast-container"></div>
+
+<div class="shell">
+  <!-- ════ Sidebar ════ -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-name">PersonalOS</div>
+      <div class="logo-tag">SOLARIS X &middot; 2026</div>
+    </div>
+
+    <div class="sidebar-label">Navigation</div>
+    <nav class="sidebar-nav">
+      <div class="nav-item active" onclick="switchTab('approvals',this)">
+        <span class="nav-icon">📬</span> Email Intelligence
+        <span class="nav-badge" id="pending-badge" style="display:none">0</span>
+      </div>
+      <div class="nav-item" onclick="switchTab('analytics',this)">
+        <span class="nav-icon">📊</span> Analytics
+      </div>
+      <div class="nav-item" onclick="switchTab('inject',this)">
+        <span class="nav-icon">⚡</span> Inject Event
+      </div>
+      <div class="nav-item" onclick="switchTab('prefs',this)">
+        <span class="nav-icon">🧠</span> Preferences
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="live-indicator">
+        <span class="live-dot"></span>
+        <span id="ws-label">Connecting…</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ════ Main ════ -->
+  <div class="main-col">
+    <!-- Top bar -->
+    <div class="top-bar">
+      <div>
+        <div class="page-title">Agent Dashboard</div>
+        <div class="page-sub">Autonomous multi-agent AI &mdash; <span class="kbd">A</span> approve &nbsp;<span class="kbd">R</span> reject &nbsp;<span class="kbd">↑↓</span> navigate</div>
+      </div>
+      <div>
+        <button class="btn-testcall" onclick="triggerTestCall()">📞 Test Call</button>
+      </div>
+    </div>
+
+    <!-- Health strip -->
+    <div id="health-grid" class="health-strip">
+      <span style="font-size:.75rem;color:var(--text-3)">Loading health…</span>
+    </div>
+
+    <!-- Tab content -->
+    <div class="page-content">
+
+      <!-- ══════════ APPROVALS TAB ══════════ -->
+      <div id="tab-approvals" class="tab-panel active">
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-num c-total" id="stat-total">—</div><div class="stat-label">Total</div></div>
+          <div class="stat-card"><div class="stat-num c-high"  id="stat-high">—</div><div class="stat-label">High</div></div>
+          <div class="stat-card"><div class="stat-num c-med"   id="stat-med">—</div><div class="stat-label">Medium</div></div>
+          <div class="stat-card"><div class="stat-num c-low"   id="stat-low">—</div><div class="stat-label">Low</div></div>
+          <div class="stat-card"><div class="stat-num c-auto"  id="stat-auto">—</div><div class="stat-label">Auto-Exec</div></div>
+          <div class="stat-card"><div class="stat-num c-pend"  id="stat-pending">—</div><div class="stat-label">Pending</div></div>
+        </div>
+
+        <div class="sec-head">
+          <div class="sec-title">Email Intelligence <span class="count-pill" id="email-count">—</span></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-green" onclick="approveAllPending()">Approve All Pending</button>
+            <button class="btn btn-purple" onclick="exportCSV()">Export CSV</button>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <input class="search-input" id="search-box" placeholder="Search subject, sender, action…" oninput="applyFilter()"/>
+        </div>
+
+        <div class="filter-chips">
+          <div class="filter-chip active" onclick="filterEmails('all',this)">All</div>
+          <div class="filter-chip" onclick="filterEmails('high',this)">High Priority</div>
+          <div class="filter-chip" onclick="filterEmails('medium',this)">Medium</div>
+          <div class="filter-chip" onclick="filterEmails('low',this)">Low</div>
+          <div class="filter-chip" onclick="filterEmails('pending',this)">Pending Approval</div>
+          <div class="filter-chip" onclick="filterEmails('auto_executed',this)">Auto-Executed</div>
+          <div class="filter-chip" onclick="filterEmails('rejected',this)">Rejected</div>
+        </div>
+
+        <div id="email-list"><p class="empty">Loading…</p></div>
+
+        <hr class="divider"/>
+        <div class="sec-head"><div class="sec-title">Activity Feed</div></div>
+        <div id="activity-feed" class="feed-list"><p class="empty">Loading…</p></div>
+      </div>
+
+      <!-- ══════════ ANALYTICS TAB ══════════ -->
+      <div id="tab-analytics" class="tab-panel">
+        <div class="analytics-grid" id="analytics-grid">
+          <div class="analytics-card"><p class="empty">Loading…</p></div>
+        </div>
+        <div class="sec-head"><div class="sec-title">Recent Activity</div></div>
+        <div id="analytics-feed" class="feed-list"><p class="empty">Loading…</p></div>
+      </div>
+
+      <!-- ══════════ INJECT TAB ══════════ -->
+      <div id="tab-inject" class="tab-panel">
+        <div class="sec-head"><div class="sec-title">Inject Test Event</div></div>
+        <p style="font-size:.82rem;color:var(--text-3);margin-bottom:20px;max-width:540px;line-height:1.65">Push a synthetic event directly into the agent pipeline — the Planner will reason about it and the Executor will route it. Perfect for live demos without Google OAuth.</p>
+        <div class="inject-form">
+          <div class="form-row">
+            <label class="form-label">Event Type</label>
+            <select class="form-select" id="inj-type" onchange="onInjTypeChange()">
+              <option value="email">Email</option>
+              <option value="calendar">Calendar Event</option>
+              <option value="filesystem">Filesystem Overflow</option>
+            </select>
+          </div>
+          <div id="inj-email-fields">
+            <div class="form-row">
+              <label class="form-label">From (sender)</label>
+              <input class="form-input" id="inj-from" placeholder="professor@university.edu" value="professor@university.edu"/>
+            </div>
+            <div class="form-row">
+              <label class="form-label">Subject</label>
+              <input class="form-input" id="inj-subject" placeholder="Assignment deadline — URGENT" value="Assignment deadline — URGENT"/>
+            </div>
+            <div class="form-row">
+              <label class="form-label">Snippet / Preview</label>
+              <textarea class="form-textarea" id="inj-snippet" placeholder="Dear student, please submit your assignment immediately…">Dear student, this is an urgent reminder. Your final project is due today. Please submit immediately.</textarea>
+            </div>
+            <div class="form-row">
+              <label class="form-check"><input type="checkbox" id="inj-urgent" checked/> Mark as urgent (adds urgency keywords → boosts confidence)</label>
+            </div>
+          </div>
+          <div id="inj-cal-fields" style="display:none">
+            <div class="form-row">
+              <label class="form-label">Event Title</label>
+              <input class="form-input" id="inj-cal-title" placeholder="Interview with Google" value="Interview with Google — Senior Engineer"/>
+            </div>
+            <div class="form-row">
+              <label class="form-label">Start Time (ISO)</label>
+              <input class="form-input" id="inj-cal-start" placeholder="2026-04-09T15:00:00+05:30"/>
+            </div>
+          </div>
+          <button class="btn-submit" id="inj-btn" onclick="injectEvent()">Inject Event →</button>
+          <div id="inj-result" style="display:none" class="inject-result"></div>
+        </div>
+      </div>
+
+      <!-- ══════════ PREFERENCES TAB ══════════ -->
+      <div id="tab-prefs" class="tab-panel">
+        <div class="sec-head">
+          <div class="sec-title">User Preferences <span class="count-pill" id="pref-count">—</span></div>
+        </div>
+        <p style="font-size:.82rem;color:var(--text-3);margin-bottom:20px;max-width:540px;line-height:1.65">These natural-language statements are stored in ChromaDB and semantically queried by the Planner to personalise every decision.</p>
+        <div id="pref-list" class="pref-list"><p class="empty">Loading…</p></div>
+
+        <hr class="divider"/>
+        <div class="sec-head"><div class="sec-title">Add Preference</div></div>
+        <div class="inject-form">
+          <div class="form-row">
+            <label class="form-label">Preference Statement</label>
+            <textarea class="form-textarea" id="pref-text" placeholder="User always replies to emails from their professor within 2 hours."></textarea>
+          </div>
+          <div class="form-row">
+            <label class="form-label">Category</label>
+            <select class="form-select" id="pref-cat">
+              <option value="general">General</option>
+              <option value="email">Email</option>
+              <option value="calendar">Calendar</option>
+              <option value="filesystem">Filesystem</option>
+            </select>
+          </div>
+          <button class="btn-submit" onclick="addPreference()">Save Preference</button>
+          <div id="pref-result" style="display:none" class="inject-result"></div>
+        </div>
+      </div>
+
+    </div><!-- /page-content -->
+  </div><!-- /main-col -->
+</div><!-- /shell -->
+
+<div class="status-bar" id="status-bar">Connecting…</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

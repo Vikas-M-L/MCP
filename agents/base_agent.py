@@ -52,17 +52,22 @@ class BaseAgent(ABC):
         self.logger.info("mcp_connected", url=url)
 
     async def disconnect_mcp(self) -> None:
-        """Clean up MCP session and SSE transport."""
+        """Clean up MCP session and SSE transport. Idempotent — safe to call multiple times."""
         if self._session_cm:
             try:
                 await self._session_cm.__aexit__(None, None, None)
             except Exception:
                 pass
+            finally:
+                self._session_cm = None
+                self._session = None
         if self._sse_cm:
             try:
                 await self._sse_cm.__aexit__(None, None, None)
             except Exception:
                 pass
+            finally:
+                self._sse_cm = None
 
     async def call_tool(self, tool_name: str, arguments: dict[str, Any]) -> Any:
         """
@@ -73,8 +78,14 @@ class BaseAgent(ABC):
         for attempt in range(3):
             try:
                 result = await self._session.call_tool(tool_name, arguments=arguments)
-                # result.content is a list of TextContent / ImageContent etc.
-                # For our tools it's always a single TextContent with JSON or a list.
+                # FastMCP >= 1.x returns list/dict results via structuredContent
+                # with an empty content list.  Prefer structuredContent when set.
+                sc = getattr(result, "structuredContent", None)
+                if sc:
+                    # {"result": [...]} for list-returning tools, plain dict otherwise
+                    return sc.get("result", sc) if isinstance(sc, dict) else sc
+
+                # Older / text-only tools put a single JSON TextContent item here.
                 content = result.content
                 if content and hasattr(content[0], "text"):
                     try:

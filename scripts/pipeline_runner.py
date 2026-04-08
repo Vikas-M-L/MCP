@@ -1,9 +1,15 @@
 """
-Direct pipeline test — reads real Gmail via httpx (bypasses httplib2 timeout),
-runs Planner LLM, pushes results to Redis so dashboard shows them.
+Direct pipeline runner — reads real Gmail via httpx (bypasses httplib2 timeout),
+runs Planner LLM, pushes results to Redis so the dashboard shows live results.
 
-Run: python tests/test_pipeline.py
-Then open: http://localhost:8080
+Run:
+    python tests/test_pipeline.py
+Then open:
+    http://localhost:8080
+
+NOTE: This is a standalone runner script, not a pytest suite.  The filename
+      intentionally does NOT start with ``test_`` to avoid confusing pytest.
+      It lives in tests/ alongside the seed scripts for discoverability.
 """
 import asyncio
 import hashlib
@@ -12,17 +18,6 @@ import re
 import sys
 import uuid
 from datetime import datetime, timezone
-
-sys.path.insert(0, ".")
-sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-
-# Apply HuggingFace token before any HF library imports
-import os as _os
-from dotenv import load_dotenv as _load
-_load()
-_hf = _os.getenv("HUGGINGFACE_TOKEN") or _os.getenv("HF_TOKEN")
-if _hf:
-    _os.environ["HF_TOKEN"] = _hf
 
 URGENCY_KEYWORDS = [
     "urgent", "asap", "deadline", "immediately", "critical",
@@ -292,4 +287,19 @@ Classify priority based on email content. What action should be taken? Respond w
 
 
 if __name__ == "__main__":
+    import sys as _sys
+    import os as _os
+
+    _sys.path.insert(0, ".")
+    # Windows consoles default to cp1252; reconfigure only when running directly
+    if hasattr(_sys.stdout, "reconfigure"):
+        _sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+    # Apply HuggingFace token before any HF library imports
+    from dotenv import load_dotenv as _load_dotenv
+    _load_dotenv()
+    _hf = _os.getenv("HUGGINGFACE_TOKEN") or _os.getenv("HF_TOKEN")
+    if _hf:
+        _os.environ["HF_TOKEN"] = _hf
+
     asyncio.run(main())

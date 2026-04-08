@@ -1,7 +1,7 @@
 """
 ExecutorAgent — The Hands of the system.
 Reads action plans from Redis approvals:pending (blocking) and routes them:
-  confidence > 90   → auto-execute via MCP + Twilio notification
+  confidence > 90   → auto-execute via MCP + Twilio call (high-priority only)
   confidence 70-90  → push to FastAPI dashboard for human approval
   confidence < 70   → silent discard (logged only)
 """
@@ -95,17 +95,21 @@ class ExecutorAgent(BaseAgent):
         except Exception:
             pass
 
-        # Update user_response in emails:all
         plan_id = plan.get("id")
+        resp = "approved" if plan.get("approved_override") else "auto_executed"
+
+        # Ensure plan exists in emails:all (Planner already stores it, but plans
+        # injected via /api/events/inject bypass the Planner's push_email_record)
+        plan["user_response"] = resp
+        await self._redis.push_email_record(plan)
+
         if plan_id:
-            resp = "approved" if plan.get("approved_override") else "auto_executed"
             await self._redis.update_email_response(plan_id, resp)
 
-        # Append to activity log
         await self._redis.append_activity_log({
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "agent": "Executor",
-            "action": f"AUTO: {action}",
+            "action": f"AUTO: {action} | {plan.get('subject','')[:40]}",
             "confidence": plan.get("confidence"),
             "result": str(result)[:200],
             "plan_id": plan_id,
@@ -113,7 +117,12 @@ class ExecutorAgent(BaseAgent):
 
     async def _push_to_dashboard(self, plan: dict[str, Any]) -> None:
         """Push to dashboard:pending for human approval via FastAPI."""
+        plan["user_response"] = "pending"
         await self._redis.push_dashboard_item(plan)
+
+        # Ensure plan is visible in the email list (upsert — push_email_record
+        # uses HSET so it's safe to call even if Planner already stored it)
+        await self._redis.push_email_record(plan)
 
         self.logger.info(
             "pushed_to_dashboard",
@@ -132,7 +141,7 @@ class ExecutorAgent(BaseAgent):
         await self._redis.append_activity_log({
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "agent": "Executor",
-            "action": f"PENDING: {plan.get('action')} (awaiting dashboard approval)",
+            "action": f"PENDING: {plan.get('action')} | {plan.get('subject','')[:40]} (awaiting approval)",
             "confidence": plan.get("confidence"),
             "plan_id": plan.get("id"),
         })
@@ -159,10 +168,14 @@ class ExecutorAgent(BaseAgent):
         except Exception:
             pass
 
+        # Store in emails:all so dashboard shows all processed emails
+        plan["user_response"] = "silent_discarded"
+        await self._redis.push_email_record(plan)
+
         await self._redis.append_activity_log({
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "agent": "Executor",
-            "action": f"DISCARDED: {plan.get('action')} (confidence too low)",
+            "action": f"DISCARDED: {plan.get('action')} | {plan.get('subject','')[:40]} (confidence too low)",
             "confidence": plan.get("confidence"),
             "plan_id": plan.get("id"),
         })

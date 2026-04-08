@@ -19,6 +19,7 @@ from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunct
 _hf_token = os.getenv("HUGGINGFACE_TOKEN") or os.getenv("HF_TOKEN")
 if _hf_token:
     os.environ["HF_TOKEN"] = _hf_token
+    os.environ["HUGGINGFACE_TOKEN"] = _hf_token
 
 
 class ChromaMemory:

@@ -16,8 +16,11 @@ class Settings(BaseSettings):
 
     # ── OpenRouter LLM ────────────────────────────────────────────────────────
     openrouter_api_key: str = ""
-    openrouter_model: str = "qwen/qwen3-6b:free"
+    openrouter_model: str = "openai/gpt-oss-20b:free"
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
+
+    # ── HuggingFace (optional — higher rate limits for embedding model downloads)
+    huggingface_token: str = ""
 
     # ── Redis ─────────────────────────────────────────────────────────────────
     redis_url: str = "redis://localhost:6379/0"
@@ -34,8 +37,8 @@ class Settings(BaseSettings):
     dashboard_port: int = 8080
 
     # ── Google OAuth ──────────────────────────────────────────────────────────
-    google_credentials_path: str = "./credentials.json"
-    google_token_path: str = "./token.json"
+    google_credentials_path: str = "./secrets/credentials.json"
+    google_token_path: str = "./secrets/token.json"
 
     # ── Filesystem ────────────────────────────────────────────────────────────
     fs_allowed_root: str = "./sandbox"
