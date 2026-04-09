@@ -52,7 +52,8 @@
         <div class="page-title">Agent Dashboard</div>
         <div class="page-sub">Autonomous multi-agent AI &mdash; <span class="kbd">A</span> approve &nbsp;<span class="kbd">R</span> reject &nbsp;<span class="kbd">↑↓</span> navigate</div>
       </div>
-      <div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn-theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">🌙</button>
         <button class="btn-testcall" onclick="triggerTestCall()">📞 Test Call</button>
       </div>
     </div>
@@ -195,5 +196,18 @@
 <div class="status-bar" id="status-bar">Connecting…</div>
 
 <script src="/static/app.js"></script>
+<script>
+  (function() {
+    if (localStorage.getItem('theme') === 'dark') {
+      document.body.classList.add('dark');
+      document.getElementById('theme-toggle').textContent = '☀️';
+    }
+  })();
+  function toggleTheme() {
+    const isDark = document.body.classList.toggle('dark');
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    document.getElementById('theme-toggle').textContent = isDark ? '☀️' : '🌙';
+  }
+</script>
 </body>
 </html>

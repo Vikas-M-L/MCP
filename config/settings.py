@@ -48,9 +48,15 @@ class Settings(BaseSettings):
     twilio_auth_token: str = ""
     twilio_from_number: str = ""
     twilio_to_number: str = ""
+    twilio_webhook_base_url: str = ""  # e.g. https://xxxx.ngrok.io (required for voice approval calls)
 
     # ── Observer ──────────────────────────────────────────────────────────────
     observer_poll_interval: int = 60
+
+    # ── Meeting auto-schedule ─────────────────────────────────────────────────
+    # Wall-clock times in meeting emails ("April 10 1pm") are interpreted in this
+    # timezone (IANA name). Use UTC if your Google Calendar primary is GMT+0.
+    meeting_parse_timezone: str = "UTC"
 
     @property
     def mcp_sse_url(self) -> str:
@@ -59,6 +65,11 @@ class Settings(BaseSettings):
     @property
     def twilio_enabled(self) -> bool:
         return bool(self.twilio_account_sid and self.twilio_auth_token)
+
+    @property
+    def voice_approval_enabled(self) -> bool:
+        """True when Twilio + a public webhook URL are both configured."""
+        return bool(self.twilio_enabled and self.twilio_webhook_base_url)
 
 
 @lru_cache(maxsize=1)

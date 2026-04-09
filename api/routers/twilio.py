@@ -29,13 +29,27 @@ async def twilio_test_call() -> dict:
             from twilio.rest import Client
             client   = Client(cfg.twilio_account_sid, cfg.twilio_auth_token)
             safe_msg = message.replace("&", "and").replace("<", "").replace(">", "").replace('"', "'")
-            twiml    = (
-                f'<Response>'
-                f'<Say voice="alice">{safe_msg}</Say>'
-                f'<Pause length="1"/>'
-                f'<Say voice="alice">Visit localhost colon 8 0 8 0 for your dashboard.</Say>'
-                f'</Response>'
-            )
+
+            if cfg.voice_approval_enabled:
+                # Demo the full voice approval pipeline — speech input
+                base_url = cfg.twilio_webhook_base_url.rstrip("/")
+                twiml = (
+                    f'<Response>'
+                    f'<Gather input="speech" action="{base_url}/api/twilio/speech/test-call" '
+                    f'method="POST" speechTimeout="3" language="en-US">'
+                    f'<Say voice="alice">{safe_msg} '
+                    f'Say yes to approve, no to reject, or modify followed by your instructions.</Say>'
+                    f'</Gather>'
+                    f'<Say voice="alice">No input detected. Check your dashboard at port 8080.</Say>'
+                    f'</Response>'
+                )
+            else:
+                twiml = (
+                    f'<Response>'
+                    f'<Say voice="alice">{safe_msg}</Say>'
+                    f'<Pause length="1"/>'
+                    f'</Response>'
+                )
             call = await asyncio.to_thread(
                 client.calls.create,
                 twiml=twiml,

@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PersonalOS Agent — SOLARIS X 2026 Hackathon Submission</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --purple:   #7c3aed;
+    --purple-l: #8b5cf6;
+    --indigo:   #4f46e5;
+    --pink:     #ec4899;
+    --green:    #059669;
+    --orange:   #d97706;
+    --red:      #dc2626;
+    --blue:     #2563eb;
+    --text:     #0f172a;
+    --text-2:   #334155;
+    --text-3:   #64748b;
+    --bg:       #f8fafc;
+    --card:     #ffffff;
+    --border:   #e2e8f0;
+  }
+
+  html { font-size: 14px; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+  }
+
+  /* ── Print styles ── */
+  @media print {
+    body { max-width: 100%; padding: 0; background: white; }
+    .no-print { display: none !important; }
+    .page-break { page-break-before: always; }
+    .card { box-shadow: none !important; border: 1px solid #e2e8f0 !important; }
+    a { color: var(--purple) !important; }
+    .cover { min-height: auto; padding: 40px 0 30px; }
+  }
+
+  /* ── Cover ── */
+  .cover {
+    min-height: 420px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 60px 0 40px;
+    border-bottom: 3px solid var(--border);
+    margin-bottom: 48px;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -80px;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(124,58,237,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hackathon-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, rgba(124,58,237,0.1), rgba(79,70,229,0.1));
+    border: 1px solid rgba(124,58,237,0.25);
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--purple);
+    margin-bottom: 20px;
+    width: fit-content;
+  }
+  .cover h1 {
+    font-size: 3.2rem;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    background: linear-gradient(135deg, #7c3aed, #4f46e5, #2563eb);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    line-height: 1.05;
+    margin-bottom: 14px;
+  }
+  .cover .tagline {
+    font-size: 1.1rem;
+    color: var(--text-2);
+    font-weight: 400;
+    max-width: 580px;
+    line-height: 1.7;
+    margin-bottom: 30px;
+  }
+  .cover-meta {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .meta-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.8rem;
+    color: var(--text-3);
+    font-weight: 500;
+  }
+  .meta-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--purple);
+  }
+
+  /* ── Section headings ── */
+  h2 {
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--text);
+    margin: 44px 0 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+    margin-left: 8px;
+  }
+  h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text);
+    margin: 20px 0 10px;
+  }
+  h4 {
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-3);
+    margin: 14px 0 8px;
+  }
+  p { margin-bottom: 12px; color: var(--text-2); font-size: 0.88rem; line-height: 1.75; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 22px;
+    margin-bottom: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  }
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .card.accent-purple { border-left: 3px solid var(--purple); }
+  .card.accent-green  { border-left: 3px solid var(--green); }
+  .card.accent-orange { border-left: 3px solid var(--orange); }
+  .card.accent-blue   { border-left: 3px solid var(--blue); }
+  .card.accent-pink   { border-left: 3px solid var(--pink); }
+  .card.accent-red    { border-left: 3px solid var(--red); }
+
+  /* ── Badges / pills ── */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-size: 0.67rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .badge-purple { background: rgba(124,58,237,.1);  color: var(--purple); border: 1px solid rgba(124,58,237,.2); }
+  .badge-green  { background: rgba(5,150,105,.1);   color: var(--green);  border: 1px solid rgba(5,150,105,.2); }
+  .badge-orange { background: rgba(217,119,6,.1);   color: var(--orange); border: 1px solid rgba(217,119,6,.2); }
+  .badge-blue   { background: rgba(37,99,235,.1);   color: var(--blue);   border: 1px solid rgba(37,99,235,.2); }
+  .badge-red    { background: rgba(220,38,38,.1);   color: var(--red);    border: 1px solid rgba(220,38,38,.2); }
+  .badge-gray   { background: #f1f5f9; color: var(--text-3); border: 1px solid var(--border); }
+
+  /* ── Code blocks ── */
+  pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    border-radius: 10px;
+    padding: 16px 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.76rem;
+    line-height: 1.7;
+    overflow-x: auto;
+    margin: 10px 0 14px;
+  }
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8em;
+    background: rgba(124,58,237,0.08);
+    color: var(--purple);
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+  pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
+  .comment { color: #64748b; }
+  .kw      { color: #a78bfa; }
+  .str     { color: #86efac; }
+  .fn      { color: #7dd3fc; }
+  .num     { color: #fdba74; }
+
+  /* ── Flow diagram ── */
+  .flow {
+    background: #0f172a;
+    border-radius: 10px;
+    padding: 20px 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.77rem;
+    line-height: 1.9;
+    color: #94a3b8;
+    margin: 12px 0;
+    overflow-x: auto;
+  }
+  .flow .node    { color: #a78bfa; font-weight: 500; }
+  .flow .arrow   { color: #4f46e5; }
+  .flow .label   { color: #7dd3fc; }
+  .flow .result  { color: #86efac; }
+  .flow .note    { color: #fbbf24; }
+
+  /* ── Stats row ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .stat-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 14px;
+    text-align: center;
+  }
+  .stat-num  { font-size: 2rem; font-weight: 900; letter-spacing: -0.04em; line-height: 1; }
+  .stat-label{ font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); margin-top: 5px; }
+
+  /* ── Feature table ── */
+  table { width: 100%; border-collapse: collapse; margin: 12px 0 18px; font-size: 0.83rem; }
+  th {
+    text-align: left;
+    padding: 9px 14px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-3);
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-2);
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(124,58,237,0.02); }
+
+  /* ── Scenario cards ── */
+  .scenario {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  .scenario-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, rgba(124,58,237,0.04), rgba(79,70,229,0.04));
+    border-bottom: 1px solid var(--border);
+  }
+  .scenario-num {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: var(--purple);
+    color: white;
+    font-size: 0.72rem;
+    font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .scenario-title { font-weight: 700; font-size: 0.88rem; }
+  .scenario-body  { padding: 12px 16px; }
+  .trigger-line   { font-size: 0.8rem; color: var(--text-3); margin-bottom: 6px; }
+  .trigger-line strong { color: var(--text); }
+  .email-preview  {
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.78rem;
+    color: var(--text-2);
+    font-style: italic;
+    line-height: 1.6;
+    margin-top: 8px;
+  }
+  .email-preview .email-label {
+    font-size: 0.64rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--purple);
+    font-style: normal;
+    margin-bottom: 5px;
+    display: block;
+  }
+
+  /* ── Architecture diagram ── */
+  .arch {
+    background: #0f172a;
+    color: #94a3b8;
+    border-radius: 12px;
+    padding: 22px 26px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.73rem;
+    line-height: 1.8;
+    overflow-x: auto;
+    margin: 14px 0;
+  }
+
+  /* ── Tech stack pills ── */
+  .tech-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin: 10px 0 16px;
+  }
+  .tech-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text-2);
+  }
+
+  /* ── Timeline ── */
+  .timeline { margin: 14px 0; }
+  .tl-item {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 10px;
+  }
+  .tl-dot-col { display: flex; flex-direction: column; align-items: center; }
+  .tl-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--purple);
+    flex-shrink: 0;
+    margin-top: 4px;
+  }
+  .tl-line {
+    flex: 1;
+    width: 1px;
+    background: var(--border);
+    margin-top: 2px;
+  }
+  .tl-content { flex: 1; padding-bottom: 6px; }
+  .tl-title { font-size: 0.85rem; font-weight: 600; margin-bottom: 3px; }
+  .tl-desc  { font-size: 0.78rem; color: var(--text-3); line-height: 1.6; }
+
+  /* ── Print button ── */
+  .print-btn {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    padding: 12px 22px;
+    background: linear-gradient(135deg, #7c3aed, #4f46e5);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(124,58,237,0.35);
+    transition: all 0.15s;
+    z-index: 100;
+  }
+  .print-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(124,58,237,0.45); }
+
+  /* ── Divider ── */
+  hr { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
+
+  /* ── Lists ── */
+  ul, ol { padding-left: 20px; margin-bottom: 12px; }
+  li { font-size: 0.85rem; color: var(--text-2); margin-bottom: 5px; line-height: 1.65; }
+  li strong { color: var(--text); }
+
+  /* ── Highlight box ── */
+  .highlight {
+    background: linear-gradient(135deg, rgba(124,58,237,0.06), rgba(79,70,229,0.04));
+    border: 1px solid rgba(124,58,237,0.2);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin: 14px 0;
+  }
+  .highlight p { margin: 0; }
+
+  .winner-box {
+    background: linear-gradient(135deg, #7c3aed, #4f46e5, #2563eb);
+    border-radius: 14px;
+    padding: 28px 28px;
+    color: white;
+    margin: 30px 0;
+    text-align: center;
+  }
+  .winner-box h3 { color: white; font-size: 1.3rem; margin-bottom: 10px; }
+  .winner-box p  { color: rgba(255,255,255,0.85); margin: 0; font-size: 0.9rem; }
+</style>
+</head>
+<body>
+
+<button class="print-btn no-print" onclick="window.print()">🖨️ Save as PDF</button>
+
+<!-- ═══════════════════════════════════════════════════════
+     COVER
+═══════════════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="hackathon-tag">🏆 SOLARIS X Hackathon 2026 — Official Submission</div>
+  <h1>PersonalOS Agent</h1>
+  <p class="tagline">
+    An autonomous, voice-controlled multi-agent AI that monitors your Gmail and Google Calendar,
+    reasons about what actions to take, calls your phone for approval — and executes on your behalf.
+    <strong style="color:var(--text)">No buttons. Just speak.</strong>
+  </p>
+  <div class="cover-meta">
+    <div class="meta-item"><span class="meta-dot"></span> 3 autonomous agents (Observer · Planner · Executor)</div>
+    <div class="meta-item"><span class="meta-dot" style="background:var(--green)"></span> Voice approval via Twilio — fully working</div>
+    <div class="meta-item"><span class="meta-dot" style="background:var(--blue)"></span> Real Gmail + Google Calendar integration</div>
+    <div class="meta-item"><span class="meta-dot" style="background:var(--orange)"></span> MCP · Redis · ChromaDB · FastAPI</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     1. WHAT IS IT
+═══════════════════════════════════════════════════════ -->
+<h2>1 · What Is PersonalOS Agent?</h2>
+
+<p>PersonalOS Agent is a <strong>production-grade agentic pipeline</strong> that acts as your personal AI secretary.
+It watches your inbox and calendar 24/7, thinks about what needs to happen, and either acts automatically or
+calls your phone and asks — in plain speech. You reply by talking. No app to open, no buttons to press.</p>
+
+<div class="stats-row">
+  <div class="stat-box">
+    <div class="stat-num" style="color:var(--purple)">3</div>
+    <div class="stat-label">Autonomous Agents</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-num" style="color:var(--green)">6</div>
+    <div class="stat-label">MCP Tools</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-num" style="color:var(--blue)">33</div>
+    <div class="stat-label">Tests Passing</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-num" style="color:var(--orange)">7</div>
+    <div class="stat-label">Meeting Scenarios</div>
+  </div>
+</div>
+
+<div class="highlight">
+  <p>💡 <strong>The core idea:</strong> Most AI assistants wait for you to ask them something.
+  PersonalOS Agent <em>proactively</em> monitors your digital life, makes decisions autonomously,
+  and only interrupts you when genuinely needed — via a phone call, not a notification.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     2. ARCHITECTURE
+═══════════════════════════════════════════════════════ -->
+<h2>2 · System Architecture</h2>
+
+<div class="arch">
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         PersonalOS Agent                                │
+│                                                                         │
+│  ┌──────────────┐  events:queue   ┌──────────────┐  approvals:pending  │
+│  │  OBSERVER    │ ──────────────▶ │  PLANNER     │ ──────────────────▶ │
+│  │  (The Eyes)  │    (Redis)      │  (The Brain) │      (Redis)        │
+│  └──────┬───────┘                 └──────────────┘                     │
+│         │                              │ LLM via OpenRouter             │
+│         │                              │ ChromaDB preferences           │
+│         │                              ▼                                │
+│         │                    ┌──────────────────┐                       │
+│         │                    │  EXECUTOR        │                       │
+│         │                    │  (The Hands)     │                       │
+│         │                    └────────┬─────────┘                       │
+│         │                             │                                 │
+│         │   ┌──────────────────────────────────────────────────────┐   │
+│         └──▶│  MCP Tool Server  :8000  (SSE JSON-RPC)              │   │
+│             │  read_emails · send_email · read_calendar             │   │
+│             │  create_event · list_files · move_file                │   │
+│             └──────────────────────────────────────────────────────┘   │
+│                                                                         │
+│  ┌──────────────────┐  ┌────────────────┐  ┌───────────────────────┐  │
+│  │  Dashboard :8080 │  │  Redis :6379   │  │  Twilio Voice API     │  │
+│  │  FastAPI + WS    │  │  queues + dedup│  │  📞 calls your phone  │  │
+│  └──────────────────┘  └────────────────┘  └───────────────────────┘  │
+│                                                                         │
+│  ┌──────────────────────────────────────────────────────────────────┐  │
+│  │  ChromaDB  (vector memory)                                        │  │
+│  │  user preferences · historical approval rates (self-improving)   │  │
+│  └──────────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────┘
+</div>
+
+<div class="card-grid">
+  <div class="card accent-purple">
+    <h3>👁️ Observer Agent</h3>
+    <p>Polls Gmail (unread emails), Google Calendar (next 3 days), and a sandboxed filesystem every 60 seconds via MCP tools.
+    Deduplicates events across restarts using Redis SETNX. Detects urgency keywords for priority boosting.
+    Can be triggered manually via dashboard.</p>
+  </div>
+  <div class="card accent-blue">
+    <h3>🧠 Planner Agent</h3>
+    <p>Consumes events from Redis queue. Calls OpenRouter LLM with structured JSON schema, urgency context, and ChromaDB preferences.
+    Produces action plans with confidence 0–100. Applies decision scoring:
+    <code>adjusted = base × urgency_mult × history_mult</code></p>
+  </div>
+  <div class="card accent-green">
+    <h3>⚡ Executor Agent</h3>
+    <p>Routes by confidence: &gt;90% auto-executes + notifies, 70–89% → dashboard + voice call, &lt;70% silently discards.
+    Records every outcome in ChromaDB so future confidence scoring improves over time.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     3. VOICE APPROVAL — THE WOW FEATURE
+═══════════════════════════════════════════════════════ -->
+<h2>3 · Voice Approval — The "Wow" Feature</h2>
+
+<p>This is the feature that makes judges stop and pay attention. Instead of opening an app and clicking a button,
+you <strong>pick up your phone and talk</strong>. The AI understands what you say — approve, reject, or modify with a spoken instruction — and acts in real time.</p>
+
+<div class="flow">
+<span class="node">📧 Email arrives</span> <span class="note">("reply to professor's urgent deadline email")</span>
+  <span class="arrow">↓</span>
+<span class="node">Planner</span> scores it: <span class="num">confidence = 78%</span> <span class="label">→ requires voice approval</span>
+  <span class="arrow">↓</span>
+<span class="node">Executor</span> stores plan in Redis <span class="label">voice:plan:{id}</span> with 5-min TTL
+  <span class="arrow">↓</span>
+<span class="node">Twilio</span> places outbound call to your phone <span class="label">url=/api/twilio/voice/{id}</span>
+  <span class="arrow">↓</span>
+<span class="node">You answer:</span> <span class="str">"Hey! Requested action: send email. Subject: Assignment Deadline.</span>
+            <span class="str"> Say yes to approve, no to reject, or modify followed by instructions."</span>
+  <span class="arrow">↓</span>
+<span class="note">You say: "reply that I will submit it by 6pm today, please give me some more time"</span>
+  <span class="arrow">↓</span>
+<span class="node">Twilio</span> POSTs SpeechResult to <span class="label">POST /api/twilio/speech/{id}</span>
+  <span class="arrow">↓</span>
+<span class="node">LLM classifies intent:</span> <span class="result">MODIFY</span> — instruction: <span class="str">"I will submit it by 6pm today, please give me some more time"</span>
+  <span class="arrow">↓</span>
+<span class="node">plan["action_args"]["body"]</span> = voice instruction injected into email body
+<span class="node">plan["approved_override"]</span> = True  →  re-queued to approvals:pending
+  <span class="arrow">↓</span>
+<span class="node">Executor</span> auto-executes: <span class="result">send_email(to, subject, body_with_voice_instruction)</span>
+  <span class="arrow">↓</span>
+<span class="node">You hear:</span> <span class="str">"Got it! I will send email with your changes. Goodbye!"</span>
+  <span class="arrow">↓</span>
+<span class="result">📊 Dashboard updates live via WebSocket broadcast</span>
+</div>
+
+<h3>Intent Classification — 4 states</h3>
+<table>
+  <tr><th>What you say</th><th>Intent</th><th>Action taken</th></tr>
+  <tr><td>"Yes", "Sure", "Go ahead", "Do it"</td><td><span class="badge badge-green">APPROVE</span></td><td>Executes immediately, email sent</td></tr>
+  <tr><td>"No", "Don't", "Cancel", "Reject"</td><td><span class="badge badge-red">REJECT</span></td><td>Removed from dashboard, logged as rejected</td></tr>
+  <tr><td>"Modify …", "Reply that …", "But make it …"</td><td><span class="badge badge-orange">MODIFY</span></td><td>Voice instruction injected into email body, then executed</td></tr>
+  <tr><td>Mumble / background noise / silence</td><td><span class="badge badge-gray">UNCLEAR</span></td><td>Re-prompts you to speak clearly</td></tr>
+</table>
+
+<p><strong>Fallback safety:</strong> If LLM fails, word-boundary regex fallback takes over.
+"No" does not match "know" or "notify" — uses <code>\b</code> regex to prevent false triggers.
+<code>speechTimeout="10"</code> gives you 10 full seconds to speak. Say "done" or "stop" to end your instruction.</p>
+
+<!-- ═══════════════════════════════════════════════════════
+     4. MEETING INTELLIGENCE — NEW FEATURE
+═══════════════════════════════════════════════════════ -->
+<h2>4 · Smart Meeting Intelligence</h2>
+
+<p>PersonalOS Agent now reads your calendar and cross-references it against incoming meeting request emails.
+It automatically drafts a polished reschedule or confirmation email based on what your calendar actually shows — no manual checking required.</p>
+
+<div class="flow">
+<span class="node">📧 Email arrives:</span> <span class="str">"Can we meet tomorrow at 3pm?"</span>
+  <span class="arrow">↓</span>
+<span class="node">Observer</span> detects meeting keywords → pushes event to queue
+  <span class="arrow">↓</span>
+<span class="node">Planner._build_prompts()</span> calls <span class="label">read_calendar(days_ahead=3)</span> via MCP
+  <span class="arrow">↓</span>
+<span class="node">MeetingResolver</span> parses busy slots + finds free 1-hour windows
+<span class="node">Conflict check:</span> Is tomorrow 3–4pm busy?
+  <span class="arrow">↓</span>
+  <span class="result">YES → inject calendar context + free slots into LLM prompt</span>
+  <span class="arrow">↓</span>
+<span class="node">LLM</span> drafts polite reschedule email with specific alternate times
+  <span class="arrow">↓</span>
+<span class="node">Executor</span> routes to voice approval → you approve by speaking → email sent
+</div>
+
+<h3>7 Scenarios Handled Automatically</h3>
+
+<div class="scenario">
+  <div class="scenario-head">
+    <div class="scenario-num">1</div>
+    <div class="scenario-title">Direct Conflict — same time requested as existing meeting</div>
+    <span class="badge badge-red" style="margin-left:auto">Conflict</span>
+  </div>
+  <div class="scenario-body">
+    <div class="trigger-line"><strong>Incoming email:</strong> "Can we meet tomorrow at 3pm?"</div>
+    <div class="trigger-line"><strong>Calendar:</strong> Tomorrow 3–4pm → "Project Review"</div>
+    <div class="email-preview">
+      <span class="email-label">Auto-drafted reply:</span>
+      Hi, I already have something scheduled at 3pm tomorrow. Would 5pm tomorrow or any time on Friday work for you instead?
+    </div>
+  </div>
+</div>
+
+<div class="scenario">
+  <div class="scenario-head">
+    <div class="scenario-num">2</div>
+    <div class="scenario-title">Entire Day Packed — no slots available</div>
+    <span class="badge badge-red" style="margin-left:auto">Fully Blocked</span>
+  </div>
+  <div class="scenario-body">
+    <div class="trigger-line"><strong>Incoming email:</strong> "Free anytime Thursday?"</div>
+    <div class="trigger-line"><strong>Calendar:</strong> Thursday has back-to-back events 9am–6pm</div>
+    <div class="email-preview">
+      <span class="email-label">Auto-drafted reply:</span>
+      Thursday looks fully packed on my end. I'm available Friday morning from 10am — does that work for you?
+    </div>
+  </div>
+</div>
+
+<div class="scenario">
+  <div class="scenario-head">
+    <div class="scenario-num">3</div>
+    <div class="scenario-title">Partial Overlap — meeting runs into existing event</div>
+    <span class="badge badge-orange" style="margin-left:auto">Partial</span>
+  </div>
+  <div class="scenario-body">
+    <div class="trigger-line"><strong>Incoming email:</strong> "Let's do a 1-hour call at 2pm Friday"</div>
+    <div class="trigger-line"><strong>Calendar:</strong> Friday 2:30–3:30pm → "Team Standup"</div>
+    <div class="email-preview">
+      <span class="email-label">Auto-drafted reply:</span>
+      I have a conflict from 2:30pm on Friday. Could we do 1pm instead (it ends before my 2:30 meeting), or push to Monday?
+    </div>
+  </div>
+</div>
+
+<div class="scenario">
+  <div class="scenario-head">
+    <div class="scenario-num">4</div>
+    <div class="scenario-title">No Specific Time — open-ended availability request</div>
+    <span class="badge badge-green" style="margin-left:auto">Free Slots</span>
+  </div>
+  <div class="scenario-body">
+    <div class="trigger-line"><strong>Incoming email:</strong> "Let's catch up this week sometime"</div>
+    <div class="trigger-line"><strong>Calendar:</strong> Wednesday afternoon and Friday morning are free</div>
+    <div class="email-preview">
+      <span class="email-label">Auto-drafted reply:</span>
+      Happy to catch up! I'm free Wednesday after 3pm or Friday before noon — let me know what works best for you.
+    </div>
+  </div>
+</div>
+
+<div class="scenario">
+  <div class="scenario-head">
+    <div class="scenario-num">5</div>
+    <div class="scenario-title">Next Day Also Busy — cascading conflict</div>
+    <span class="badge badge-red" style="margin-left:auto">Multi-day</span>
+  </div>
+  <div class="scenario-body">
+    <div class="trigger-line"><strong>Incoming email:</strong> "Can we reschedule to tomorrow?"</div>
+    <div class="trigger-line"><strong>Calendar:</strong> Tomorrow fully blocked AND day-after only morning free</div>
+    <div class="email-preview">
+      <span class="email-label">Auto-drafted reply:</span>
+      Tomorrow is fully booked as well. I do have Thursday morning free — say 10am or 11am?
+    </div>
+  </div>
+</div>
+
+<div class="scenario">
+  <div class="scenario-head">
+    <div class="scenario-num">6</div>
+    <div class="scenario-title">Recurring Meeting Conflict — weekly block</div>
+    <span class="badge badge-orange" style="margin-left:auto">Recurring</span>
+  </div>
+  <div class="scenario-body">
+    <div class="trigger-line"><strong>Incoming email:</strong> "Every Monday 2pm works?"</div>
+    <div class="trigger-line"><strong>Calendar:</strong> Monday 2pm → recurring "Weekly Sync"</div>
+    <div class="email-preview">
+      <span class="email-label">Auto-drafted reply:</span>
+      Mondays at 2pm are blocked with a recurring meeting. Would Tuesday or Wednesday at the same time work as a regular slot?
+    </div>
+  </div>
+</div>
+
+<div class="scenario">
+  <div class="scenario-head">
+    <div class="scenario-num">7</div>
+    <div class="scenario-title">Calendar Is Free — auto-create event + confirm</div>
+    <span class="badge badge-green" style="margin-left:auto">Auto-Schedule</span>
+  </div>
+  <div class="scenario-body">
+    <div class="trigger-line"><strong>Incoming email:</strong> "Can we meet tomorrow at 11am?"</div>
+    <div class="trigger-line"><strong>Calendar:</strong> Tomorrow 11am–12pm is completely free</div>
+    <div class="email-preview">
+      <span class="email-label">Auto-drafted reply + calendar invite created:</span>
+      Great, I've blocked 11am–12pm tomorrow on my calendar. See you then! [Calendar invite sent]
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     5. FULL FEATURE LIST
+═══════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h2>5 · Complete Feature List</h2>
+
+<table>
+  <tr>
+    <th>Feature</th>
+    <th>Status</th>
+    <th>Technical Detail</th>
+  </tr>
+  <tr>
+    <td><strong>Real Gmail monitoring</strong></td>
+    <td><span class="badge badge-green">✓ Live</span></td>
+    <td>OAuth 2.0, reads unread emails every 60s, deduplicates via Redis SETNX</td>
+  </tr>
+  <tr>
+    <td><strong>Google Calendar integration</strong></td>
+    <td><span class="badge badge-green">✓ Live</span></td>
+    <td>Reads events for next 7 days, creates events, same OAuth token as Gmail</td>
+  </tr>
+  <tr>
+    <td><strong>LLM action planning</strong></td>
+    <td><span class="badge badge-green">✓ Live</span></td>
+    <td>OpenRouter (any model), structured JSON schema, 2 alternatives per plan</td>
+  </tr>
+  <tr>
+    <td><strong>Confidence-based routing</strong></td>
+    <td><span class="badge badge-green">✓ Live</span></td>
+    <td>>90% auto-exec, 70–89% voice/dashboard, &lt;70% discard with log</td>
+  </tr>
+  <tr>
+    <td><strong>Voice approval via phone call</strong></td>
+    <td><span class="badge badge-green">✓ Live</span></td>
+    <td>Twilio outbound call, TwiML Gather speech, 10s timeout, LLM + regex fallback</td>
+  </tr>
+  <tr>
+    <td><strong>Voice modification</strong></td>
+    <td><span class="badge badge-green">✓ Live</span></td>
+    <td>Say "modify [instruction]" — words injected into email body, then sent</td>
+  </tr>
+  <tr>
+    <td><strong>Smart meeting scheduling</strong></td>
+    <td><span class="badge badge-green">✓ Live</span></td>
+    <td>Calendar conflict detection, free slot finder, 7 scenarios, auto email draft</td>
+  </tr>
+  <tr>
+    <td><strong>Human approval dashboard</strong></td>
+    <td><span class="badge badge-green">✓ Live</span></td>
+    <td>FastAPI + vanilla JS, light/dark theme toggle, search, filter, bulk approve</td>
+  </tr>
+  <tr>
+    <td><strong>Real-time WebSocket updates</strong></td>
+    <td><span class="badge badge-green">✓ Live</span></td>
+    <td>Dashboard refreshes instantly on any plan change, 20s keep-alive ping</td>
+  </tr>
+  <tr>
+    <td><strong>Vector memory (ChromaDB)</strong></td>
+    <td><span class="badge badge-green">✓ Live</span></td>
+    <td>Stores user preferences + approval outcomes, influences future confidence scores</td>
+  </tr>
+  <tr>
+    <td><strong>Decision scoring formula</strong></td>
+    <td><span class="badge badge-green">✓ Live</span></td>
+    <td>adjusted = base × urgency_mult(1.0–1.3) × history_mult(0.9–1.1)</td>
+  </tr>
+  <tr>
+    <td><strong>MCP tool server</strong></td>
+    <td><span class="badge badge-green">✓ Live</span></td>
+    <td>FastMCP over SSE, agents never call Google APIs directly</td>
+  </tr>
+  <tr>
+    <td><strong>Filesystem assistant</strong></td>
+    <td><span class="badge badge-green">✓ Live</span></td>
+    <td>Sandboxed list + move files, directory traversal blocked at tool layer</td>
+  </tr>
+  <tr>
+    <td><strong>Inject Event (demo mode)</strong></td>
+    <td><span class="badge badge-green">✓ Live</span></td>
+    <td>Dashboard UI to push synthetic events without Google OAuth — perfect for live demos</td>
+  </tr>
+  <tr>
+    <td><strong>Analytics dashboard</strong></td>
+    <td><span class="badge badge-green">✓ Live</span></td>
+    <td>Confidence histogram, priority/response breakdown, queue depth, auto-exec rate</td>
+  </tr>
+  <tr>
+    <td><strong>33 automated tests</strong></td>
+    <td><span class="badge badge-green">✓ Passing</span></td>
+    <td>18 unit tests + 15 integration tests, covers full approve/reject lifecycle</td>
+  </tr>
+  <tr>
+    <td><strong>Light/Dark theme toggle</strong></td>
+    <td><span class="badge badge-green">✓ Live</span></td>
+    <td>CSS variables, persisted in localStorage</td>
+  </tr>
+  <tr>
+    <td><strong>Structlog + JSON logging</strong></td>
+    <td><span class="badge badge-green">✓ Live</span></td>
+    <td>Colorized console + structured JSON file for each agent</td>
+  </tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════
+     6. TECH STACK
+═══════════════════════════════════════════════════════ -->
+<h2>6 · Technology Stack</h2>
+
+<div class="tech-grid">
+  <div class="tech-pill">🐍 Python 3.11</div>
+  <div class="tech-pill">⚡ FastAPI</div>
+  <div class="tech-pill">🔴 Redis</div>
+  <div class="tech-pill">🧠 ChromaDB</div>
+  <div class="tech-pill">🤖 OpenRouter LLM</div>
+  <div class="tech-pill">🔧 MCP (FastMCP)</div>
+  <div class="tech-pill">📞 Twilio Voice API</div>
+  <div class="tech-pill">📧 Gmail API v1</div>
+  <div class="tech-pill">📅 Google Calendar API v3</div>
+  <div class="tech-pill">🔐 OAuth 2.0</div>
+  <div class="tech-pill">🌐 WebSocket</div>
+  <div class="tech-pill">📊 sentence-transformers</div>
+  <div class="tech-pill">🔄 asyncio</div>
+  <div class="tech-pill">🏗️ pydantic-settings</div>
+  <div class="tech-pill">📝 structlog</div>
+  <div class="tech-pill">🧪 pytest (33 tests)</div>
+</div>
+
+<table>
+  <tr><th>Layer</th><th>Technology</th><th>Why this choice</th></tr>
+  <tr>
+    <td><strong>Agents</strong></td>
+    <td>Python asyncio tasks</td>
+    <td>Single event loop for all agents; no thread contention; clean CancelledError handling</td>
+  </tr>
+  <tr>
+    <td><strong>Tool Protocol</strong></td>
+    <td>MCP (Model Context Protocol)</td>
+    <td>Industry standard for AI tool access; agents are fully decoupled from API implementations</td>
+  </tr>
+  <tr>
+    <td><strong>LLM</strong></td>
+    <td>OpenRouter (OpenAI-compatible)</td>
+    <td>Swap between GPT-4o, Claude, Qwen, Llama without changing a line of code</td>
+  </tr>
+  <tr>
+    <td><strong>Message queue</strong></td>
+    <td>Redis BLPOP / BRPOP</td>
+    <td>Blocking pop = zero CPU when idle; atomic deduplication via SETNX</td>
+  </tr>
+  <tr>
+    <td><strong>Vector memory</strong></td>
+    <td>ChromaDB + all-MiniLM-L6-v2</td>
+    <td>Fast semantic search for preferences; persisted across restarts</td>
+  </tr>
+  <tr>
+    <td><strong>Voice</strong></td>
+    <td>Twilio TwiML + Gather speech</td>
+    <td>Enhanced ASR, 10s timeout, 10 speech recognition parameter options</td>
+  </tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════
+     7. DEMO GUIDE
+═══════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h2>7 · Live Demo Guide (for Judges)</h2>
+
+<p>Three paths to demo — choose based on available internet / OAuth setup.</p>
+
+<h3>🚀 Option A — Full Live Demo (most impressive)</h3>
+<div class="timeline">
+  <div class="tl-item">
+    <div class="tl-dot-col"><div class="tl-dot"></div><div class="tl-line"></div></div>
+    <div class="tl-content">
+      <div class="tl-title">Start the system</div>
+      <div class="tl-desc"><code>python main.py</code> → all 3 agents + MCP server + dashboard boot in ~3 seconds</div>
+    </div>
+  </div>
+  <div class="tl-item">
+    <div class="tl-dot-col"><div class="tl-dot"></div><div class="tl-line"></div></div>
+    <div class="tl-content">
+      <div class="tl-title">Open dashboard</div>
+      <div class="tl-desc">Navigate to <code>http://localhost:8080</code> — health strip shows all services green</div>
+    </div>
+  </div>
+  <div class="tl-item">
+    <div class="tl-dot-col"><div class="tl-dot"></div><div class="tl-line"></div></div>
+    <div class="tl-content">
+      <div class="tl-title">Inject a meeting request email</div>
+      <div class="tl-desc">Click "Inject Event" tab → From: <code>professor@university.edu</code> → Subject: "Can we meet tomorrow at 3pm?" → check Urgent → click Inject</div>
+    </div>
+  </div>
+  <div class="tl-item">
+    <div class="tl-dot-col"><div class="tl-dot"></div><div class="tl-line"></div></div>
+    <div class="tl-content">
+      <div class="tl-title">Watch it flow in real time</div>
+      <div class="tl-desc">Activity feed updates live — Observer detected → Planner reasoned → calendar checked → Executor routing</div>
+    </div>
+  </div>
+  <div class="tl-item">
+    <div class="tl-dot-col"><div class="tl-dot"></div><div class="tl-line"></div></div>
+    <div class="tl-content">
+      <div class="tl-title">Phone rings (if Twilio configured)</div>
+      <div class="tl-desc">Answer and say <strong>"Yes"</strong> to approve, or <strong>"Modify, reply that I'm available at 5pm instead"</strong></div>
+    </div>
+  </div>
+  <div class="tl-item">
+    <div class="tl-dot-col"><div class="tl-dot"></div></div>
+    <div class="tl-content">
+      <div class="tl-title">Email sent — dashboard updates</div>
+      <div class="tl-desc">Email list shows "approved" badge. Activity log shows the voice instruction that was used.</div>
+    </div>
+  </div>
+</div>
+
+<h3>📊 Option B — Seed Script Demo (no Google OAuth needed)</h3>
+<pre><code><span class="comment"># Terminal 1</span>
+<span class="fn">python</span> main.py --skip-poll
+
+<span class="comment"># Terminal 2 — inject 4 realistic events instantly</span>
+<span class="fn">python</span> tests/fixtures/seed_events.py</code></pre>
+
+<h3>🎙️ Option C — Voice-Only Demo</h3>
+<pre><code><span class="comment"># Inject a voice approval test directly (calls your phone)</span>
+<span class="fn">python</span> scripts/test_voice_email.py
+
+<span class="comment"># Or trigger a test call from the dashboard header button</span>
+<span class="comment"># Click "📞 Test Call" → phone rings → say anything to demonstrate ASR</span></code></pre>
+
+<h3>Key things to show judges</h3>
+<ul>
+  <li><strong>The phone call itself</strong> — this is the single most impressive thing. Have ngrok running and answer the call live.</li>
+  <li><strong>The "modify" flow</strong> — say a full sentence after "modify", show the exact text appears in the sent email body.</li>
+  <li><strong>Dashboard real-time update</strong> — after approving by voice, show the dashboard badge changes instantly (WebSocket).</li>
+  <li><strong>Analytics tab</strong> — show confidence distribution, auto-execute rate, this demonstrates the scoring system.</li>
+  <li><strong>Meeting scenario</strong> — inject a meeting request email, show it reads calendar and drafts a conflict email automatically.</li>
+  <li><strong>ChromaDB memory</strong> — Preferences tab shows stored user preferences that influence every planning decision.</li>
+  <li><strong>Light/dark toggle</strong> — small detail that shows polish.</li>
+</ul>
+
+<!-- ═══════════════════════════════════════════════════════
+     8. WHY THIS WINS
+═══════════════════════════════════════════════════════ -->
+<h2>8 · Why This Should Win</h2>
+
+<div class="card-grid">
+  <div class="card accent-purple">
+    <h4>🏗️ Production Quality</h4>
+    <p>Not a prototype. 33 passing tests. Structured logging. Graceful shutdown.
+    Pre-flight health checker. Retry logic with exponential backoff. Error surfaces to dashboard instead of silently dying.</p>
+  </div>
+  <div class="card accent-green">
+    <h4>📞 Voice Is Real</h4>
+    <p>The phone call feature is fully working — confirmed by a real email arriving at vikas935314@gmail.com with the spoken voice instruction in the body.
+    This is not a mock or simulation.</p>
+  </div>
+  <div class="card accent-blue">
+    <h4>🤝 Real Integrations</h4>
+    <p>Live Gmail, live Google Calendar, live Twilio. All authenticated with real OAuth.
+    Not mock data — real emails flowing through the pipeline.</p>
+  </div>
+  <div class="card accent-orange">
+    <h4>🧠 Self-Improving</h4>
+    <p>ChromaDB records every approval/rejection. Future confidence scores adjust based on historical approval rates.
+    The system gets smarter with every interaction.</p>
+  </div>
+  <div class="card accent-pink">
+    <h4>🔌 MCP Protocol</h4>
+    <p>Uses the industry-standard Model Context Protocol — the same protocol Anthropic built into Claude.
+    Agents never call external APIs directly, making the tool layer swappable and auditable.</p>
+  </div>
+  <div class="card accent-red">
+    <h4>💡 Novel UX</h4>
+    <p>The interaction model is genuinely new: AI monitors → reasons → calls you → listens → acts.
+    No app to open, no button to press. Your phone is the interface.</p>
+  </div>
+</div>
+
+<div class="winner-box">
+  <h3>🏆 One-Line Pitch for Judges</h3>
+  <p>
+    PersonalOS Agent is an autonomous 3-agent AI system that watches your Gmail and Google Calendar,
+    reasons about what needs to happen, calls your phone to ask — and when you say
+    <em>"reply that I'll submit it by evening"</em> — it sends the email with those exact words.
+    <strong>No app. No buttons. Just talk.</strong>
+  </p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     9. SETUP IN 5 MINUTES
+═══════════════════════════════════════════════════════ -->
+<h2>9 · Setup in 5 Minutes</h2>
+
+<pre><code><span class="comment"># 1. Install dependencies</span>
+<span class="fn">pip</span> install -r requirements.txt
+
+<span class="comment"># 2. Set up environment (minimum config)</span>
+<span class="fn">cp</span> .env.example .env
+<span class="comment"># Edit .env — set OPENROUTER_API_KEY at minimum</span>
+<span class="comment"># For voice: add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN,</span>
+<span class="comment">#            TWILIO_FROM_NUMBER, TWILIO_TO_NUMBER, TWILIO_WEBHOOK_BASE_URL</span>
+
+<span class="comment"># 3. Google OAuth (one-time)</span>
+<span class="fn">python</span> scripts/setup_google_auth.py
+
+<span class="comment"># 4. Start Redis</span>
+<span class="fn">redis-server</span>
+
+<span class="comment"># 5. Run pre-flight check</span>
+<span class="fn">python</span> scripts/check.py
+
+<span class="comment"># 6. Launch everything</span>
+<span class="fn">python</span> main.py
+
+<span class="comment"># Open http://localhost:8080</span></code></pre>
+
+<p style="margin-top:4px">For voice approval, also run <code>ngrok http 8000</code> and set the printed URL as <code>TWILIO_WEBHOOK_BASE_URL</code> in <code>.env</code>, then restart.</p>
+
+<!-- ═══════════════════════════════════════════════════════
+     10. API REFERENCE
+═══════════════════════════════════════════════════════ -->
+<h2>10 · API & MCP Reference</h2>
+
+<h3>MCP Tools (port 8000)</h3>
+<table>
+  <tr><th>Tool</th><th>Arguments</th><th>Returns</th></tr>
+  <tr><td><code>read_emails</code></td><td>max_results, query</td><td>[{id, from, subject, snippet, date, unread}]</td></tr>
+  <tr><td><code>send_email</code></td><td>to, subject, body</td><td>{message_id, status}</td></tr>
+  <tr><td><code>read_calendar</code></td><td>days_ahead</td><td>[{id, summary, start, end, attendees}]</td></tr>
+  <tr><td><code>create_event</code></td><td>summary, start_datetime, end_datetime, …</td><td>{event_id, html_link, status}</td></tr>
+  <tr><td><code>list_files</code></td><td>directory</td><td>[{name, path, size_bytes, modified_iso}]</td></tr>
+  <tr><td><code>move_file</code></td><td>source, destination</td><td>{source, destination, success}</td></tr>
+</table>
+
+<h3>Dashboard REST API (port 8080)</h3>
+<table>
+  <tr><th>Endpoint</th><th>Method</th><th>Description</th></tr>
+  <tr><td>/api/emails</td><td>GET</td><td>All plans, newest first</td></tr>
+  <tr><td>/api/pending</td><td>GET</td><td>Plans awaiting human approval</td></tr>
+  <tr><td>/api/approve/{id}</td><td>POST</td><td>Approve a plan → re-queues to Executor</td></tr>
+  <tr><td>/api/reject/{id}</td><td>POST</td><td>Reject and discard, logs to ChromaDB</td></tr>
+  <tr><td>/api/health</td><td>GET</td><td>Multi-service health (Redis, LLM, Google, Twilio, ChromaDB, MCP)</td></tr>
+  <tr><td>/api/metrics</td><td>GET</td><td>Confidence histogram, priority/response breakdown</td></tr>
+  <tr><td>/api/preferences</td><td>GET/POST</td><td>View/add ChromaDB user preference statements</td></tr>
+  <tr><td>/api/events/inject</td><td>POST</td><td>Inject synthetic event (demo mode)</td></tr>
+  <tr><td>/api/twilio/test</td><td>POST</td><td>Trigger real or simulated Twilio test call</td></tr>
+  <tr><td>/api/twilio/voice/{id}</td><td>GET/POST</td><td>TwiML for voice approval prompt</td></tr>
+  <tr><td>/api/twilio/speech/{id}</td><td>POST</td><td>Twilio SpeechResult callback → LLM intent classification</td></tr>
+  <tr><td>/ws</td><td>WS</td><td>WebSocket — server pushes {"type":"refresh"} on any plan change</td></tr>
+</table>
+
+<hr/>
+
+<p style="text-align:center; color:var(--text-3); font-size:0.75rem; margin-top:32px">
+  PersonalOS Agent &nbsp;·&nbsp; SOLARIS X Hackathon 2026 &nbsp;·&nbsp;
+  Built with Python · FastAPI · Redis · ChromaDB · Twilio · MCP · OpenRouter
+</p>
+
+</body>
+</html>

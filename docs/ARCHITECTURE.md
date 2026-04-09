@@ -238,6 +238,45 @@ run()
 
 When a plan is manually approved via the dashboard, the dashboard API re-queues it to `approvals:pending` with `override=true`, so the Executor auto-routes it.
 
+#### Voice Approval Sub-flow
+
+For medium-confidence plans (70–89%), if `TWILIO_WEBHOOK_BASE_URL` is set, the Executor also places an outbound voice call in parallel with the dashboard push:
+
+```
+Email arrives (70-89% confidence)
+  ↓
+Executor._push_to_dashboard()
+  ↓
+Twilio call placed → url=/api/twilio/voice/{plan_id}
+  ↓
+User answers phone:
+  "Hey! Requested action: send_email.
+   Email: Professor deadline. Say yes, no, or modify..."
+  ↓
+User says: "Yes, reply that I'll send it by evening"
+  ↓
+POST /api/twilio/speech/{plan_id}  ← Twilio sends SpeechResult
+  ↓
+LLM classifies: MODIFY  (with instruction: "reply that I'll send it by evening")
+  ↓
+plan["action_args"]["body"] += "\n[Voice instruction: reply that I'll send it by evening]"
+plan["approved_override"] = True
+  ↓
+push back to approvals:pending → Executor auto-executes
+  ↓
+User hears: "Got it! I will send email with your changes. Goodbye!"
+  ↓
+Dashboard updates live via WebSocket
+```
+
+Key implementation details:
+- Plan stored in Redis at `voice:plan:{plan_id}` with 5-minute TTL
+- LLM intent: `APPROVE` / `REJECT` / `MODIFY` / `UNCLEAR` (keyword fallback if LLM fails)
+- `APPROVE` / `MODIFY` → `approved_override=True` → re-queued to `approvals:pending`
+- `REJECT` → removed from `dashboard:pending`, marked `rejected_by_voice`
+- `UNCLEAR` → re-prompts the caller once before hanging up
+- Gracefully skipped when `TWILIO_WEBHOOK_BASE_URL` is not set
+
 ---
 
 ## Data Flows

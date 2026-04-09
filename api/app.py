@@ -24,7 +24,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from api.ws import manager
-from api.routers import approvals, events, health, metrics, preferences, twilio
+from api.routers import approvals, events, health, metrics, preferences, twilio, voice
 
 _STATIC_DIR = Path(__file__).parent / "static"
 
@@ -40,6 +40,7 @@ app.include_router(health.router)
 app.include_router(metrics.router)
 app.include_router(preferences.router)
 app.include_router(twilio.router)
+app.include_router(voice.router)
 
 
 # ── WebSocket ──────────────────────────────────────────────────────────────────

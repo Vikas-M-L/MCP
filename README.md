@@ -36,6 +36,37 @@ PersonalOS Agent is a production-grade agentic pipeline composed of three autono
 └───────────────────────────────────────────────────────────────────┘
 ```
 
+### 🎙️ Voice Approval Flow
+
+> Instead of pressing buttons — the system talks like a human.
+
+```
+Email arrives (70-89% confidence)
+  ↓
+Executor._push_to_dashboard()
+  ↓
+Twilio call placed → url=/api/twilio/voice/{plan_id}
+  ↓
+User answers phone:
+  "Hey! Requested action: send_email.
+   Email: Professor deadline. Say yes, no, or modify..."
+  ↓
+User says: "Yes, reply that I'll send it by evening"
+  ↓
+POST /api/twilio/speech/{plan_id}  ← Twilio sends SpeechResult
+  ↓
+LLM classifies: MODIFY  (with instruction: "reply that I'll send it by evening")
+  ↓
+plan["action_args"]["body"] += "\n[Voice instruction: reply that I'll send it by evening]"
+plan["approved_override"] = True
+  ↓
+push back to approvals:pending → Executor auto-executes
+  ↓
+User hears: "Got it! I will send email with your changes. Goodbye!"
+  ↓
+Dashboard updates live via WebSocket
+```
+
 ---
 
 ## Features
@@ -184,6 +215,7 @@ All settings are loaded from `.env` via `pydantic-settings`. Every value has a s
 | `TWILIO_AUTH_TOKEN` | *(blank = simulation)* | Twilio auth token |
 | `TWILIO_FROM_NUMBER` | — | E.164 Twilio phone number (e.g. `+15551234567`) |
 | `TWILIO_TO_NUMBER` | — | E.164 destination number for notifications |
+| `TWILIO_WEBHOOK_BASE_URL` | *(blank)* | Public URL for voice approval webhooks (e.g. ngrok: `https://xxxx.ngrok-free.app`) |
 | `OBSERVER_POLL_INTERVAL` | `60` | Seconds between Observer polling cycles |
 
 ---

@@ -33,12 +33,14 @@ class ExecutorAgent(BaseAgent):
     async def run(self) -> None:
         """Block on approvals:pending, route each plan by confidence."""
         from utils.notifier import Notifier
+        from config.settings import get_settings
         self._redis = RedisClient.get_instance()
         self._memory = ChromaMemory.from_settings()
         self._notifier = Notifier()
 
-        self.logger.info("executor_started")
-        print("[Executor] Ready — routing by confidence threshold")
+        voice_enabled = get_settings().voice_approval_enabled
+        self.logger.info("executor_started", voice_approval=voice_enabled)
+        print(f"[Executor] Ready — voice approval: {'ON' if voice_enabled else 'OFF'}")
 
         while True:
             plan = await self._redis.pop_approval(timeout=0)
@@ -57,9 +59,15 @@ class ExecutorAgent(BaseAgent):
                 override=approved_override,
             )
 
-            if confidence > 90 or approved_override:
+            if approved_override:
+                # Already approved (via voice or dashboard) — execute immediately
+                await self._auto_execute(plan)
+            elif confidence > 90 and not voice_enabled:
+                # Voice not configured — auto-execute high-confidence plans as before
                 await self._auto_execute(plan)
             elif confidence >= 70:
+                # Voice configured: ask via call first (all actionable plans)
+                # Voice not configured: send to dashboard for manual approval
                 await self._push_to_dashboard(plan)
             else:
                 await self._silent_discard(plan)
@@ -86,8 +94,37 @@ class ExecutorAgent(BaseAgent):
                 self.logger.error("action_failed", action=action, error=str(exc))
                 print(f"[Executor] ERROR executing {action}: {exc}")
 
-        # Notify user (Twilio or simulation)
-        await self._notifier.notify(plan, result)
+        # Send confirmation reply email when a meeting was auto-scheduled on a free slot.
+        # The Planner attaches a pre-built confirmation_email dict to the plan.
+        confirmation = plan.get("confirmation_email")
+        if confirmation and action == "create_event" and result and "error" not in str(result).lower():
+            try:
+                conf_result = await self.call_tool("send_email", confirmation)
+                self.logger.info(
+                    "confirmation_email_sent",
+                    to=confirmation.get("to"),
+                    subject=confirmation.get("subject"),
+                    result=str(conf_result)[:100],
+                )
+                print(
+                    f"[Executor] Confirmation email sent"
+                    f"\n  To      : {confirmation.get('to')}"
+                    f"\n  Subject : {confirmation.get('subject')}"
+                )
+            except Exception as exc:
+                self.logger.warning("confirmation_email_failed", error=str(exc))
+                print(f"[Executor] Confirmation email failed: {exc}")
+
+        # Notify user via Twilio — skipped when the plan explicitly opts out.
+        # Meeting on a FREE slot → auto-scheduled + confirmation email sent, no call.
+        # Meeting on a BUSY slot → conflict detected → calls the user.
+        if not plan.get("skip_call"):
+            await self._notifier.notify(plan, result)
+        else:
+            print(
+                f"[Executor] Call skipped — slot was free, "
+                f"event scheduled: {plan.get('action_args', {}).get('summary', '')}"
+            )
 
         # Record outcome in ChromaDB for future learning
         try:
@@ -116,7 +153,12 @@ class ExecutorAgent(BaseAgent):
         })
 
     async def _push_to_dashboard(self, plan: dict[str, Any]) -> None:
-        """Push to dashboard:pending for human approval via FastAPI."""
+        """Push to dashboard:pending for human approval via FastAPI.
+
+        If voice approval is configured (TWILIO_WEBHOOK_BASE_URL set), also
+        places an outbound call that speaks the action and captures spoken
+        approve / reject / modify from the user.
+        """
         plan["user_response"] = "pending"
         await self._redis.push_dashboard_item(plan)
 
@@ -137,6 +179,15 @@ class ExecutorAgent(BaseAgent):
             f"\n  Reason    : {plan.get('reason')}"
             f"\n  → Open http://localhost:8080 to approve/reject"
         )
+
+        # Place a voice approval call if configured (non-blocking — failure is ok)
+        if self._notifier:
+            try:
+                placed = await self._notifier.voice_ask(plan)
+                if placed:
+                    print(f"[Executor] VOICE CALL dispatched for approval — Plan: {plan.get('id')}")
+            except Exception as exc:
+                self.logger.warning("voice_ask_skipped", error=str(exc))
 
         await self._redis.append_activity_log({
             "timestamp": datetime.now(timezone.utc).isoformat(),
