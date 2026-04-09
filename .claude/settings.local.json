@@ -13,7 +13,8 @@
       "Bash(python -c \"import pptx; print\\(''pptx ok'', pptx.__version__\\)\")",
       "Bash(python scripts/build_ppt.py)",
       "Bash(cd /d D:projectspersonal_os_agent)",
-      "Bash(python -c \":*)"
+      "Bash(python -c \":*)",
+      "Bash(python -c \"import agents.planner_agent; print\\(''OK''\\)\")"
     ]
   }
 }

@@ -162,12 +162,28 @@ def _build_call_text(plan: dict[str, Any], event: dict[str, Any]) -> str:
     action = plan.get("action", "no_action").replace("_", " ")
     confidence = plan.get("confidence", 0)
     reason = plan.get("reason", "")[:120]
-    from_addr = event["payload"].get("from", event.get("source", "unknown"))[:60]
-    subject = event["payload"].get("subject", event.get("summary", ""))[:80]
+    payload = event.get("payload", {})
+    from_addr = payload.get("from", event.get("source", "unknown"))[:60]
+    subject = payload.get("subject", event.get("summary", ""))[:80]
 
-    if confidence > 90:
-        status_line = "This action has been automatically executed."
-    elif confidence >= 70:
+    # Calendar conflict — build a specific script so the user clearly understands
+    # what was drafted and what they need to say.
+    if plan.get("_is_conflict_reply"):
+        requested_dt = event.get("_requested_dt", "the requested time")
+        free_hint = plan.get("_conflict_free_hint", "")
+        return (
+            f"Hey! Your Personal OS Agent here. "
+            f"You have a meeting request from {from_addr}. "
+            f"Subject: {subject}. "
+            f"I found a conflict in your calendar at {requested_dt}. "
+            f"I have drafted a polite reply explaining the conflict"
+            f"{' and suggesting ' + free_hint if free_hint else ''}. "
+            f"Say yes to send the reply, no to reject, "
+            f"or say modify followed by your instructions."
+        )
+
+    # Normal (non-meeting) plan — derive status line from confidence.
+    if confidence >= 70:
         status_line = "Say yes to approve, no to reject, or modify followed by your instruction."
     else:
         status_line = "Action was discarded due to low confidence."
@@ -251,14 +267,13 @@ class PlannerAgent(BaseAgent):
                     llm_priority = "high" if c > 90 else "medium" if c >= 70 else "low"
                 scored_plan["priority"] = llm_priority
 
-                # Build spoken call script (used by Twilio notifier)
-                scored_plan["call_text"] = _build_call_text(scored_plan, event)
-
                 # Meeting-request routing:
-                #   Calendar FREE  → create_event (auto-schedule) + confirmation email to sender.
-                #                    No Twilio call — it was booked silently.
-                #   Calendar BUSY  → send_email conflict reply already planned by LLM.
-                #                    skip_call=False → Executor calls the user to inform.
+                #   Calendar FREE  → auto-book (create_event) + confirmation email to sender.
+                #                    approved_override=True, skip_call=True — no voice call.
+                #   Calendar BUSY  → LLM drafted conflict reply (send_email).
+                #                    Force confidence=85 so it ALWAYS routes to voice approval
+                #                    call regardless of the LLM's confidence value.
+                #                    User hears the conflict summary, says yes/no/modify.
                 cal_conflict = event.get("_calendar_conflict")
                 if _calendar_free_slot_ready(event):
                     # Parsed time + calendar free → deterministic create_event, no LLM drift.
@@ -274,12 +289,28 @@ class PlannerAgent(BaseAgent):
                         f"[Planner] Calendar FREE — auto-book + confirm email (no call): "
                         f"{scored_plan.get('action_args', {}).get('summary', 'event')}"
                     )
-                elif is_meeting_request(event.get("payload", {})) or event.get(
-                    "is_meeting_request"
-                ):
-                    if cal_conflict is True:
-                        scored_plan["skip_call"] = False
-                        scored_plan["priority"] = "high"
+                elif cal_conflict is True:
+                    # Calendar BUSY → always require voice approval before sending reply.
+                    # Override whatever confidence the LLM produced so this never
+                    # auto-executes (even if LLM said 92+).
+                    scored_plan["confidence"] = 85
+                    scored_plan["requires_approval"] = True
+                    scored_plan["approved_override"] = False
+                    scored_plan["skip_call"] = False
+                    scored_plan["priority"] = "high"
+                    scored_plan["_is_conflict_reply"] = True
+                    # Carry free-slot hint into call_text (e.g. "Friday 10am or Monday 2pm")
+                    free_slots = event.get("_free_slot_hints", [])
+                    if free_slots:
+                        scored_plan["_conflict_free_hint"] = " or ".join(free_slots[:2])
+                    print(
+                        f"[Planner] Calendar CONFLICT — conflict reply drafted, "
+                        f"voice approval required (confidence forced to 85)"
+                    )
+
+                # Build spoken call script AFTER routing flags are set so
+                # _is_conflict_reply and _conflict_free_hint are already present.
+                scored_plan["call_text"] = _build_call_text(scored_plan, event)
 
                 # Push to approvals queue (Executor picks this up)
                 await self._redis.push_approval(scored_plan)
@@ -454,6 +485,11 @@ class PlannerAgent(BaseAgent):
                             "send_email (reply with conflict message + suggest free slots above)"
                         )
                         schedule_hint = ""
+                        # Store human-readable free slot hints for the voice call script
+                        event["_free_slot_hints"] = [
+                            slot.astimezone(_IST).strftime("%A %I:%M %p")
+                            for slot in free[:2]
+                        ]
                     else:
                         status_hint = (
                             f"CALENDAR_STATUS: FREE — "
