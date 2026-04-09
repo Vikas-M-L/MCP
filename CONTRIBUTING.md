@@ -35,6 +35,8 @@ python -m venv .venv
 # macOS / Linux
 source .venv/bin/activate
 
+pip install -e .[dev]     # installs prod deps + pytest/httpx/etc.
+# or, for plain pip without editable install:
 pip install -r requirements.txt
 ```
 
@@ -48,7 +50,7 @@ cp .env.example .env
 ### Pre-flight
 
 ```bash
-python check.py   # all checks except MCP should be green
+python scripts/check.py   # all checks except MCP should be green
 ```
 
 ### Running without Google OAuth
@@ -56,8 +58,8 @@ python check.py   # all checks except MCP should be green
 If you don't have Google credentials set up, use demo mode:
 
 ```bash
-python main.py --skip-poll     # start without Observer
-python tests/seed_events.py   # inject synthetic events
+python main.py --skip-poll            # start without Observer
+python tests/fixtures/seed_events.py  # inject synthetic events
 ```
 
 ---
@@ -171,24 +173,39 @@ tasks.append(asyncio.create_task(my_agent.start(), name="my-agent"))
 
 ## Testing
 
-There is currently no automated test suite; contributions that add tests are very welcome.
+The project ships a comprehensive pytest suite (33 tests — 18 unit, 15 integration).
 
-### Manual integration test
+### Unit tests — no running system required
 
 ```bash
-# Inject demo events and watch the Planner + Executor process them:
-python main.py --skip-poll &
-python tests/seed_events.py
-# Observe the dashboard at http://localhost:8080
+pytest tests/test_backend.py -m unit -v
+```
+
+Covers Redis client, Observer normalizers, Planner JSON parsing, and Executor routing logic.
+
+### Integration tests — requires `python main.py` running
+
+```bash
+# Terminal 1
+python main.py
+
+# Terminal 2
+pytest tests/test_backend.py -m integration -v
+```
+
+### Full suite
+
+```bash
+pytest tests/test_backend.py -v
 ```
 
 ### Health check
 
 ```bash
-python check.py
+python scripts/check.py
 ```
 
-All 35 checks (minus the MCP server check, which requires `main.py` to be running) should pass before submitting a PR.
+All checks (minus the MCP server check, which requires `main.py` to be running) should pass before submitting a PR.
 
 ---
 
@@ -196,7 +213,7 @@ All 35 checks (minus the MCP server check, which requires `main.py` to be runnin
 
 - [ ] `black .` — no formatting changes remain.
 - [ ] `ruff check .` — no linting errors.
-- [ ] `python check.py` — all applicable checks pass.
+- [ ] `python scripts/check.py` — all applicable checks pass.
 - [ ] New MCP tools are covered in the README tools table.
 - [ ] New settings are documented in the README configuration table and added to `.env.example`.
 - [ ] `credentials.json`, `token.json`, and `.env` are **not** included in the diff.

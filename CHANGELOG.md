@@ -10,6 +10,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.3.0] — 2026-04-08
+
+### Added
+
+- **`core/bootstrap.py`**: extracted all startup logic from `main.py` (MCP thread, Redis check, MCP readiness probe, agent task creation, uvicorn setup). `main.py` is now a thin CLI entry point.
+- **`api/static/`**: split the monolithic `DASHBOARD_HTML` Python string into three separate static files — `dashboard.html`, `style.css`, `app.js`. Served via `fastapi.staticfiles.StaticFiles`; `GET /` returns `FileResponse`.
+- **`api/routers/`**: modularised `api/dashboard.py` into six focused router modules (`approvals`, `events`, `health`, `metrics`, `preferences`, `twilio`).
+- **`api/ws.py`**: `ConnectionManager` class extracted into its own module; now shared across all routers.
+- **`secrets/` directory**: `credentials.json` and `token.json` moved here from the project root. `secrets/` is gitignored.
+- **`scripts/` directory**: consolidated all standalone utility scripts (`check.py`, `demo_call.py`, `setup_google_auth.py`, `pipeline_runner.py`, `start.ps1`) from the project root and `tests/`.
+- **`tests/fixtures/` directory**: `seed_events.py` and `seed_dashboard.py` moved from `tests/` root.
+- **`pyproject.toml`**: replaces `pytest.ini`, `requirements.txt` (dev deps only), and provides PEP 517 build config. All pytest markers and `asyncio_mode` live here.
+- **`start.ps1` (root)**: thin launcher that delegates to `scripts/start.ps1`; `scripts/start.ps1` kills stale processes on ports 8000/8080 before starting `main.py`.
+- **`tests/test_backend.py` — `cleanup_injected_events` fixture**: snapshots pre-existing `inj-` prefixed entries in `emails:all` before each integration test, then removes any newly created ones (plus their `seen_event:` keys and activity-log entries) after the test completes. Prevents test data from appearing in the live dashboard.
+
+### Changed
+
+- **`utils/notifier.py`**: Twilio phone calls are now sent only for `high`-priority plans. Medium and low-priority plans skip the call entirely with a structured log entry.
+- **`config/settings.py`**: `google_credentials_path` and `google_token_path` now default to `./secrets/credentials.json` and `./secrets/token.json`.
+- **Dashboard redesign**: complete visual overhaul — glassmorphism cards, Inter/JetBrains Mono typography, dark-mode-ready CSS variables, animated confidence badges, bulk-approve, CSV export, and collapsible scoring breakdown.
+
+### Removed
+
+- **`api/dashboard.py`**: backward-compat shim deleted — nothing imported it; `main.py` and tests both reference `api.app` directly.
+- **`api/ui.py`**: temporary `DASHBOARD_HTML` holder deleted after static-file split.
+- **`requirements-dev.txt`**: superseded by `pyproject.toml [project.optional-dependencies.dev]`.
+- **`pytest.ini`**: superseded by `pyproject.toml [tool.pytest.ini_options]`.
+- **`scripts/check_redis_emails.py`**: one-off diagnostic script deleted.
+- **`scripts/fix_mojibake.py`**, **`scripts/verify_fix.py`**: temporary encoding-fix scripts deleted after use.
+
+---
+
 ## [1.2.0] — 2026-04-08
 
 ### Fixed
@@ -102,7 +134,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-[Unreleased]: https://github.com/your-org/personal-os-agent/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/your-org/personal-os-agent/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/your-org/personal-os-agent/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/your-org/personal-os-agent/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/your-org/personal-os-agent/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/your-org/personal-os-agent/releases/tag/v1.0.0

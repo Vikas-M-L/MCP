@@ -48,6 +48,10 @@ import redis.asyncio as aioredis
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 DASHBOARD_URL = "http://localhost:8080"
+# Production system uses DB 0. Unit tests create their own RedisClient instance
+# against DB 0 too (same server), but they write to unique keys and clean them up.
+# Integration tests that call the live HTTP API write to DB 0 intentionally (the
+# running server owns DB 0), so those tests MUST clean up their injected records.
 REDIS_URL = "redis://localhost:6379/0"
 
 
@@ -82,6 +86,64 @@ async def clean_test_keys(redis_raw):
     all_keys = keys + extra
     if all_keys:
         await redis_raw.delete(*all_keys)
+
+
+@pytest.fixture
+async def cleanup_injected_events(redis_raw):
+    """
+    Fixture for integration tests that POST to /api/events/inject.
+
+    Collects every inj- prefixed event_id that exists before the test starts,
+    then after the test removes any NEW inj- entries from emails:all, the
+    dedup seen_event:* keys, and the matching activity log lines.
+
+    This prevents test data from polluting the live dashboard.
+    """
+    # Snapshot pre-existing inj- ids so we only delete what THIS test created
+    pre_existing: set[str] = set()
+    all_pre = await redis_raw.hgetall("emails:all")
+    for v in all_pre.values():
+        try:
+            eid = json.loads(v).get("event_id", "")
+            if eid.startswith("inj-"):
+                pre_existing.add(eid)
+        except Exception:
+            pass
+
+    yield  # ── test runs here ──
+
+    # Remove newly injected records
+    all_post = await redis_raw.hgetall("emails:all")
+    to_delete: list[str] = []
+    for k, v in all_post.items():
+        try:
+            eid = json.loads(v).get("event_id", k)
+        except Exception:
+            eid = k
+        if eid.startswith("inj-") and eid not in pre_existing:
+            to_delete.append(k)
+            await redis_raw.delete(f"seen_event:{eid}")
+    if to_delete:
+        await redis_raw.hdel("emails:all", *to_delete)
+
+    # Prune matching activity log entries (list — rebuild without test entries)
+    test_senders = {"ci-test@personalos.internal", "tester@personalos.internal"}
+    test_markers = {"delete me", "REVIEW REQUIRED", "INJECTED"}
+    logs = await redis_raw.lrange("activity:log", 0, -1)
+    clean: list[str] = []
+    for entry in logs:
+        try:
+            obj = json.loads(entry)
+            action = obj.get("action", "")
+            if any(s in action for s in test_senders) or any(m in action for m in test_markers):
+                continue
+        except Exception:
+            pass
+        clean.append(entry)
+    if len(clean) != len(logs):
+        await redis_raw.delete("activity:log")
+        if clean:
+            await redis_raw.rpush("activity:log", *clean)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -684,7 +746,7 @@ def test_mcp_read_emails_via_inject_and_observe(http):
 # ── 8. Event Injection → Pipeline ─────────────────────────────────────────────
 
 @pytest.mark.integration
-def test_inject_urgent_email_flows_to_emails_all(http):
+def test_inject_urgent_email_flows_to_emails_all(http, cleanup_injected_events):
     """
     POST /api/events/inject with urgent=True should produce a plan in emails:all
     within 60 seconds (Planner processes it).
@@ -758,7 +820,7 @@ def test_inject_urgent_email_flows_to_emails_all(http):
 
 
 @pytest.mark.integration
-def test_inject_calendar_event(http):
+def test_inject_calendar_event(http, cleanup_injected_events):
     """POST /api/events/inject for a calendar event also works."""
     _require_system(http)
     payload = {
@@ -804,7 +866,7 @@ def test_reject_nonexistent_plan_returns_404(http):
 
 
 @pytest.mark.integration
-def test_full_approve_flow(http):
+def test_full_approve_flow(http, cleanup_injected_events):
     """
     Inject a medium-confidence event, wait for it to reach dashboard:pending,
     then approve it and verify it moves to emails:all with response='approved'.

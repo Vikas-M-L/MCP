@@ -99,7 +99,7 @@ Download `credentials.json` from [Google Cloud Console](https://console.cloud.go
 python scripts/setup_google_auth.py
 ```
 
-This opens a browser, authorises both Gmail and Calendar scopes, and saves `token.json` locally.
+This opens a browser, authorises both Gmail and Calendar scopes, and saves `secrets/token.json` locally.
 
 ### 4. Start Redis
 
@@ -177,8 +177,8 @@ All settings are loaded from `.env` via `pydantic-settings`. Every value has a s
 | `MCP_SERVER_HOST` | `127.0.0.1` | MCP tool server bind address |
 | `MCP_SERVER_PORT` | `8000` | MCP tool server port |
 | `DASHBOARD_PORT` | `8080` | Human approval dashboard port |
-| `GOOGLE_CREDENTIALS_PATH` | `./credentials.json` | Path to Google OAuth client secrets |
-| `GOOGLE_TOKEN_PATH` | `./token.json` | Path for storing OAuth access/refresh tokens |
+| `GOOGLE_CREDENTIALS_PATH` | `./secrets/credentials.json` | Path to Google OAuth client secrets |
+| `GOOGLE_TOKEN_PATH` | `./secrets/token.json` | Path for storing OAuth access/refresh tokens |
 | `FS_ALLOWED_ROOT` | `./sandbox` | Root directory for all filesystem tool operations |
 | `TWILIO_ACCOUNT_SID` | *(blank = simulation)* | Twilio account SID |
 | `TWILIO_AUTH_TOKEN` | *(blank = simulation)* | Twilio auth token |
@@ -239,8 +239,10 @@ The project ships a comprehensive pytest suite covering both unit logic and live
 ### Install test dependencies
 
 ```bash
-pip install -r requirements-dev.txt
+pip install -e .[dev]
 ```
+
+> Alternatively: `pip install pytest pytest-asyncio httpx`
 
 ### Unit tests — no running system needed
 
@@ -302,8 +304,10 @@ personal-os-agent/
 ├── api/
 │   ├── app.py                 # FastAPI factory — wires all routers and WebSocket
 │   ├── ws.py                  # WebSocket ConnectionManager (broadcast helper)
-│   ├── ui.py                  # DASHBOARD_HTML constant (single-page frontend)
-│   ├── dashboard.py           # Backward-compat shim → re-exports api.app.app
+│   ├── static/
+│   │   ├── dashboard.html     # Single-page frontend (served as static file)
+│   │   ├── style.css          # All CSS
+│   │   └── app.js             # All JavaScript + WebSocket client
 │   └── routers/
 │       ├── approvals.py       # GET/POST /api/pending, /emails, /approve, /reject, /poll
 │       ├── events.py          # POST /api/events/inject
@@ -313,6 +317,8 @@ personal-os-agent/
 │       └── twilio.py          # POST /api/twilio/test
 ├── config/
 │   └── settings.py            # Pydantic-settings config (loaded once, lru_cache)
+├── core/
+│   └── bootstrap.py           # App bootstrap: MCP thread, agent tasks, uvicorn startup
 ├── memory/
 │   ├── redis_client.py        # Async Redis singleton: queues, dedup, activity log
 │   └── chroma_memory.py       # ChromaDB vector memory: preferences + outcomes
@@ -339,11 +345,13 @@ personal-os-agent/
 │   └── start.ps1              # Windows: kill stale ports then start main.py
 ├── docs/
 │   └── ARCHITECTURE.md        # Deep-dive architecture documentation
+├── secrets/                   # Google OAuth credentials (gitignored)
 ├── logs/                      # Runtime log output (created at startup)
 ├── sandbox/                   # Filesystem tool sandbox root (created at startup)
 ├── main.py                    # Entry point — starts all agents concurrently
 ├── start.ps1                  # Thin Windows launcher (delegates to scripts/start.ps1)
-├── requirements.txt
+├── pyproject.toml             # Project metadata + dependencies (replaces requirements files)
+├── requirements.txt           # Convenience pin-list for plain pip install
 ├── .env.example
 ├── CHANGELOG.md
 └── CONTRIBUTING.md
@@ -379,7 +387,7 @@ All `*_datetime` values are ISO 8601 strings (e.g. `2026-04-09T14:00:00+05:30`).
 | Vector memory | ChromaDB + sentence-transformers |
 | Google APIs | Gmail API v1, Calendar API v3, OAuth 2.0 |
 | Phone notifications | Twilio Voice API |
-| Web dashboard | FastAPI + vanilla JS (embedded HTML, no template engine) |
+| Web dashboard | FastAPI + vanilla JS (static HTML/CSS/JS, no template engine) |
 | Real-time | WebSocket (`fastapi.WebSocket` + `websockets`) |
 | HTTP client | httpx (async) |
 | Configuration | pydantic-settings |
@@ -389,7 +397,7 @@ All `*_datetime` values are ISO 8601 strings (e.g. `2026-04-09T14:00:00+05:30`).
 
 ## Security Notes
 
-- `credentials.json` and `token.json` contain Google OAuth secrets — **never commit these to version control**. Both are in `.gitignore`.
+- `secrets/credentials.json` and `secrets/token.json` contain Google OAuth secrets — **never commit these to version control**. The `secrets/` directory is in `.gitignore`.
 - The `.env` file contains API keys — **never commit it**. Only `.env.example` (with blank values) should be tracked.
 - The filesystem tool is sandboxed to `FS_ALLOWED_ROOT` (`./sandbox` by default). Paths that attempt directory traversal outside this root are rejected with `PermissionError` at the tool layer.
 - The MCP server binds to `127.0.0.1` by default and is not exposed externally.

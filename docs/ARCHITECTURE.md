@@ -268,9 +268,10 @@ Gmail API
 |---|---|---|
 | `events:queue` | List | LPUSH by Observer, BRPOP by Planner |
 | `approvals:pending` | List | LPUSH by Planner/Dashboard, BRPOP by Executor |
-| `dashboard:pending` | List | LPUSH by Executor (borderline confidence), read by Dashboard |
+| `dashboard:pending` | Hash | HSET by Executor (borderline confidence); field=plan_id, value=JSON plan |
+| `emails:all` | Hash | HSET by Planner/Executor for every routed plan; field=plan_id, value=JSON |
 | `seen_event:<id>` | String | TTL=86400 — deduplication per event ID |
-| `activity:log` | List | LPUSH, capped at 50 by Dashboard read |
+| `activity:log` | List | RPUSH by all agents; last 50 entries served by `/api/feed` |
 
 ---
 
@@ -282,10 +283,15 @@ Async singleton wrapping `redis.asyncio.from_url()`. All agents share the same s
 
 - `push_event(event)` / `pop_event()` — LPUSH / BRPOP on `events:queue`
 - `push_approval(plan)` / `pop_approval()` — LPUSH / BRPOP on `approvals:pending`
-- `push_dashboard_pending(plan)` — LPUSH on `dashboard:pending`
+- `push_dashboard_item(plan)` — HSET on `dashboard:pending` (field = plan id)
+- `get_dashboard_items()` — HGETALL on `dashboard:pending`
+- `remove_dashboard_item(id)` — HDEL on `dashboard:pending`
+- `push_email_record(plan)` — HSET on `emails:all` (field = plan id)
+- `get_email_records()` — HGETALL on `emails:all`, sorted newest-first
 - `mark_event_seen(id)` — SETEX `seen_event:<id>` TTL 86400
 - `is_event_seen(id)` — EXISTS `seen_event:<id>`
-- `log_activity(entry)` — LPUSH on `activity:log`
+- `clear_event_seen(id)` — DEL `seen_event:<id>` (used by seed scripts)
+- `log_activity(entry)` — RPUSH on `activity:log`
 
 ### ChromaDB (`memory/chroma_memory.py`)
 
@@ -310,18 +316,25 @@ adjusted_confidence = 0.7 * raw_confidence + 0.3 * approval_rate
 
 ## Human Approval Dashboard
 
-`api/dashboard.py` — FastAPI application served on port 8080.
+`api/app.py` — FastAPI application served on port 8080. Routers live in `api/routers/`; the frontend is served as static files from `api/static/`.
 
 ```
-GET  /                    → Jinja2 HTML (inline template)
-GET  /api/pending         → JSON [{id, action, tool, args, confidence, urgency, timestamp}]
-POST /api/approve/{id}    → move from dashboard:pending to approvals:pending (override=true)
-POST /api/reject/{id}     → remove from dashboard:pending, record_outcome("rejected")
-GET  /api/activity        → JSON [last 50 activity log entries]
-GET  /api/health          → JSON {redis, openrouter, google, twilio, chromadb, mcp}
+GET  /                      → dashboard.html (FileResponse from api/static/)
+GET  /api/emails            → all plans sorted newest-first
+GET  /api/pending           → plans awaiting human approval
+POST /api/approve/{id}      → approve → re-queue to approvals:pending (override=true)
+POST /api/reject/{id}       → reject → record_outcome("rejected") in ChromaDB
+GET  /api/feed              → last 50 activity log entries (newest first)
+GET  /api/health            → {redis, openrouter, google, twilio, chromadb, mcp}
+GET  /api/metrics           → confidence histogram, priority/response breakdown, queue depths
+GET  /api/preferences       → list ChromaDB user-preference documents
+POST /api/preferences       → add a new natural-language preference statement
+POST /api/events/inject     → inject a synthetic event into events:queue (demo mode)
+POST /api/twilio/test       → trigger a real or simulated Twilio test call
+GET  /ws                    → WebSocket — server pushes {"type":"refresh"} on state changes
 ```
 
-The dashboard polls `/api/pending` every 5 seconds via `setInterval` in the browser. No WebSocket or SSE is used for the UI — plain HTTP polling keeps the frontend simple.
+The frontend JavaScript connects to `/ws` on page load. When a plan is approved, rejected, or injected, the server broadcasts `{"type":"refresh"}` to all connected clients, triggering an immediate data reload. A keep-alive ping fires every 20 s. The client falls back to 8 s polling if the WebSocket connection is unavailable.
 
 ---
 
@@ -342,16 +355,16 @@ All modules call `get_settings()`. The `@lru_cache` ensures the `.env` file is p
 ## Startup Sequence
 
 ```
-python main.py
-  1. _start_mcp_server_thread()   — daemon thread started, begins uvicorn
-  2. asyncio.run(main(args))
+python main.py  (thin entry point — delegates to core/bootstrap.py)
+  1. start_mcp_server_thread()    — daemon thread started, begins uvicorn on port 8000
+  2. asyncio.run(run(args))       — core/bootstrap.py::run()
   3. setup_logging()
-  4. _check_redis()               — ping; fail fast if Redis is down
-  5. _wait_for_mcp_server()       — HTTP GET probe every 0.5s (max 30s)
+  4. check_redis()                — ping; fail fast if Redis is down
+  5. wait_for_mcp_server()        — HTTP GET probe every 0.5s (max 30s)
   6. create_task(observer.start())
   7. create_task(planner.start())
   8. create_task(executor.start())
-  9. create_task(dashboard.serve())
+  9. create_task(dashboard_server.serve())  — uvicorn serving api/app.py on port 8080
  10. asyncio.gather(*tasks)
 ```
 
