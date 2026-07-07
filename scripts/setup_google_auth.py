@@ -1,15 +1,15 @@
 """
 One-time Google OAuth setup.
 Run this ONCE to authorize Gmail + Calendar access and save token.json.
-After this, main.py will work without any browser popup.
+After this, run.py will work without any browser popup.
 
 Usage:
-  python setup_google_auth.py
+  python scripts/setup_google_auth.py
 """
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from config.settings import get_settings
 from mcp_server.google_auth import SCOPES
@@ -25,9 +25,9 @@ if not Path(cfg.google_credentials_path).exists():
     print(f"\n[ERROR] credentials.json not found at: {cfg.google_credentials_path}")
     print("\nTo fix:")
     print("  1. Go to https://console.cloud.google.com")
-    print("  2. APIs & Services → Credentials → Create OAuth 2.0 Client ID")
+    print("  2. APIs & Services -> Credentials -> Create OAuth 2.0 Client ID")
     print("  3. Application type: Desktop app")
-    print("  4. Download JSON → rename to credentials.json → place in project folder")
+    print("  4. Download JSON -> rename to credentials.json -> place in secrets/ folder")
     sys.exit(1)
 
 print(f"\n[OK] credentials.json found: {cfg.google_credentials_path}")
@@ -62,7 +62,7 @@ try:
     print(f"[OK] Calendar verified — calendar: '{cal_name}'")
 
     print("\n" + "=" * 55)
-    print("  Setup complete! Now run: python main.py")
+    print("  Setup complete! Now run: python run.py")
     print("=" * 55)
 
 except Exception as e:

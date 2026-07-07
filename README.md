@@ -1,8 +1,8 @@
-# PersonalOS Agent
+# Personal OS Agent
 
-> An autonomous multi-agent system that monitors your Gmail, Google Calendar, and local filesystem — then plans and executes actions on your behalf, with a human-in-the-loop approval dashboard.
+> An autonomous multi-agent system that monitors Gmail, Google Calendar, and local filesystems, then plans and executes actions with a human-in-the-loop approval dashboard.
 
-Built for the **SOLARIS X Hackathon 2026**.
+This repository is structured for clean development, testing, and GitHub deployment.
 
 ---
 
@@ -153,7 +153,7 @@ All checks should pass (the MCP server check shows `FAIL` — that is expected; 
 ### 6. Start the system
 
 ```bash
-python main.py
+python run.py
 ```
 
 Open the dashboard at **http://localhost:8080**.
@@ -166,7 +166,7 @@ Open the dashboard at **http://localhost:8080**.
 
 ```bash
 # Terminal 1 — start with polling disabled
-python main.py --skip-poll
+python run.py --skip-poll
 
 # Terminal 2 — inject 4 realistic demo events (email + calendar)
 python tests/fixtures/seed_events.py
@@ -176,7 +176,7 @@ The Planner and Executor process the seeded events immediately. High-confidence 
 
 ### Option B — Dashboard injection (no extra terminal needed)
 
-1. Start `python main.py --skip-poll`
+1. Start `python run.py --skip-poll`
 2. Open **http://localhost:8080**
 3. Click the **Inject Event** tab
 4. Fill in a subject, sender, snippet, check **"Mark as urgent"**, and click **Inject Event →**
@@ -186,7 +186,7 @@ The event flows through the full pipeline in real time on-screen.
 ### Option C — Pre-built dashboard seed
 
 ```bash
-python main.py --skip-poll
+python run.py --skip-poll
 python tests/fixtures/seed_dashboard.py   # injects 6 ready-made plans directly
 ```
 
@@ -224,13 +224,13 @@ All settings are loaded from `.env` via `pydantic-settings`. Every value has a s
 
 ```bash
 # Full system — all agents + MCP server + dashboard
-python main.py
+python run.py
 
 # Disable Observer (inject events manually)
-python main.py --skip-poll
+python run.py --skip-poll
 
 # Skip MCP server (for testing agents in isolation, no tool calls)
-python main.py --no-mcp
+python run.py --no-mcp
 ```
 
 ---
@@ -288,11 +288,11 @@ Covers (18 tests, ~25 s):
 - Planner: JSON parsing (valid, markdown-fenced, invalid, clamping, defaults), confidence scoring
 - Executor: routing thresholds (>90 auto, 70–90 dashboard, <70 discard), ACTION_TOOL_MAP completeness
 
-### Integration tests — requires `python main.py` running
+### Integration tests — requires `python run.py` running
 
 ```bash
 # Start the system first
-python main.py
+python run.py
 
 # Then in a second terminal:
 pytest tests/test_backend.py -m integration -v

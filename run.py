@@ -1,4 +1,4 @@
-"""Backward-compatible launcher for the Personal OS Agent."""
+"""Compatibility entry point for the Personal OS Agent."""
 
 from personal_os_agent.cli import main
 
