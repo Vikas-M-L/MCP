@@ -35,3 +35,9 @@ htmlcov/
 .idea/
 .vscode/
 *.swp
+
+# AI tool session files (Claude Code, Antigravity, Cursor, etc.)
+.claude/
+.agents/
+.cursor/
+
