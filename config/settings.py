@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     mcp_server_port: int = 8000
 
     # ── FastAPI Dashboard ─────────────────────────────────────────────────────
+    dashboard_host: str = "0.0.0.0"  # restrict to 127.0.0.1 for local-only access
     dashboard_port: int = 8080
 
     # ── Google OAuth ──────────────────────────────────────────────────────────

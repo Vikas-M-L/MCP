@@ -146,7 +146,7 @@ async def run(args) -> None:
 
     dashboard_config = uvicorn.Config(
         dashboard_app,
-        host="0.0.0.0",
+        host=cfg.dashboard_host,
         port=cfg.dashboard_port,
         log_level="warning",
     )

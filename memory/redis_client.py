@@ -130,6 +130,10 @@ class RedisClient:
         """Remove a single event from the dedup cache (used by demo seed scripts)."""
         await self._redis.delete(f"seen_event:{event_id}")
 
+    async def set_voice_plan(self, plan_id: str, plan: dict[str, Any], ttl: int = 300) -> None:
+        """Store a plan for Twilio voice webhook retrieval (default TTL: 5 minutes)."""
+        await self._redis.setex(f"voice:plan:{plan_id}", ttl, json.dumps(plan))
+
     # ── Activity log (all agents write, dashboard reads) ─────────────────────
 
     async def append_activity_log(self, entry: dict[str, Any]) -> None:

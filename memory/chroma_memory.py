@@ -23,6 +23,8 @@ if _hf_token:
 
 
 class ChromaMemory:
+    _instance: "ChromaMemory | None" = None
+
     def __init__(self, persist_path: str, embedding_model: str) -> None:
         self._client = chromadb.PersistentClient(path=persist_path)
         self._ef = SentenceTransformerEmbeddingFunction(
@@ -48,6 +50,13 @@ class ChromaMemory:
         from config.settings import get_settings
         cfg = get_settings()
         return cls(cfg.chroma_persist_path, cfg.chroma_embedding_model)
+
+    @classmethod
+    def get_instance(cls) -> "ChromaMemory":
+        """Return the shared singleton — creates it on first call."""
+        if cls._instance is None:
+            cls._instance = cls.from_settings()
+        return cls._instance
 
     # ── User Preferences ──────────────────────────────────────────────────────
 
@@ -132,8 +141,9 @@ class ChromaMemory:
 
     async def get_approval_rate(self, action_type: str) -> float:
         """
-        Query outcomes for this action_type and return historical approval rate.
+        Look up outcomes for this action_type and return historical approval rate.
         Returns 0.5 (neutral) when no history exists.
+        Uses metadata-only get() for exact lookup — no embedding computation needed.
         """
         count = await asyncio.to_thread(self.outcomes.count)
         if count == 0:
@@ -141,19 +151,19 @@ class ChromaMemory:
 
         try:
             results = await asyncio.to_thread(
-                self.outcomes.query,
-                query_texts=[f"action: {action_type}"],
-                n_results=min(20, count),
+                self.outcomes.get,
                 where={"action_type": {"$eq": action_type}},
+                limit=min(20, count),
             )
         except Exception:
             # where filter may fail if no matching docs
             return 0.5
 
-        if not results or not results["metadatas"] or not results["metadatas"][0]:
+        if not results or not results.get("metadatas"):
             return 0.5
 
-        metas = results["metadatas"][0]
+        # get() returns a flat list (unlike query() which returns nested [[...]])
+        metas = results["metadatas"]
         if not metas:
             return 0.5
 

@@ -223,7 +223,7 @@ class ObserverAgent(BaseAgent):
         self, files: list[dict], count: int
     ) -> dict[str, Any]:
         """Emit a single event when the sandbox folder is overflowing with files."""
-        event_id = hashlib.sha256(f"files:overflow:{count}".encode()).hexdigest()[:16]
+        event_id = hashlib.sha256(b"files:overflow:sandbox_root").hexdigest()[:16]
         return {
             "event_id": event_id,
             "type": "filesystem",

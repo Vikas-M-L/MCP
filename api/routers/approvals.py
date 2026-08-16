@@ -9,8 +9,7 @@ Approval endpoints — human-in-the-loop plan management.
 """
 from datetime import datetime, timezone
 
-from fastapi import APIRouter
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, HTTPException
 
 from api.ws import manager
 
@@ -44,7 +43,7 @@ async def approve_action(item_id: str) -> dict:
     redis = RedisClient.get_instance()
     item = await redis.get_dashboard_item(item_id)
     if not item:
-        return JSONResponse({"error": "Item not found"}, status_code=404)
+        raise HTTPException(status_code=404, detail="Item not found")
 
     item["approved_override"] = True
     await redis.push_approval(item)
@@ -69,13 +68,13 @@ async def reject_action(item_id: str) -> dict:
     redis = RedisClient.get_instance()
     item = await redis.get_dashboard_item(item_id)
     if not item:
-        return JSONResponse({"error": "Item not found"}, status_code=404)
+        raise HTTPException(status_code=404, detail="Item not found")
 
     await redis.remove_dashboard_item(item_id)
     await redis.update_email_response(item_id, "rejected")
 
     try:
-        memory = ChromaMemory.from_settings()
+        memory = ChromaMemory.get_instance()
         await memory.record_outcome(item, {}, approved=False, executor="dashboard")
     except Exception:
         pass

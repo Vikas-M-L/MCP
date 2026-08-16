@@ -14,6 +14,7 @@ import re
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from openai import AsyncOpenAI
 
@@ -82,7 +83,7 @@ def _build_confirmation_email(plan: dict[str, Any], event: dict[str, Any]) -> di
         f"I've gone ahead and scheduled {summary} for {time_str}. "
         f"A calendar invite has been sent to you.\n\n"
         f"Looking forward to it!\n\n"
-        f"Best regards"
+        f"Best regards,\nPersonalOS Agent"
     )
     return {
         "to":      to,
@@ -378,6 +379,17 @@ class PlannerAgent(BaseAgent):
                 except Exception:
                     pass
 
+                # Rate-limit back-off: if the LLM returned 429, pause before
+                # processing the next event so we don't cascade failing calls.
+                if "429" in err_str or "rate" in err_str.lower():
+                    backoff = 30
+                    self.logger.warning("planner_rate_limited", backoff_s=backoff)
+                    print(
+                        f"[Planner] Rate-limited (429) — "
+                        f"backing off {backoff}s before next event"
+                    )
+                    await asyncio.sleep(backoff)
+
     # ── LLM Reasoning ─────────────────────────────────────────────────────────
 
     async def _plan_event(self, event: dict[str, Any]) -> dict[str, Any]:
@@ -396,11 +408,7 @@ class PlannerAgent(BaseAgent):
             max_tokens=800,
         )
         raw = response.choices[0].message.content or ""
-        plan = self._parse_llm_response(raw)
-        # If calendar already proved free, never trust read_calendar / send_email from LLM.
-        if _calendar_free_slot_ready(event):
-            return _build_deterministic_meeting_plan(event)
-        return plan
+        return self._parse_llm_response(raw)
 
     async def _build_prompts(self, event: dict[str, Any]) -> tuple[str, str]:
         """
@@ -443,13 +451,20 @@ class PlannerAgent(BaseAgent):
                 cal_raw = await self.call_tool("read_calendar", {"days_ahead": 14})
                 cal_events = cal_raw if isinstance(cal_raw, list) else []
                 busy = parse_busy_slots(cal_events)
-                free = find_free_slots(busy, datetime.now(timezone.utc))
+                # Resolve the user's configured timezone so free-slot scanning
+                # uses working hours in the correct local timezone, not always IST.
+                from config.settings import get_settings as _gs
+                try:
+                    _user_tz = ZoneInfo(_gs().meeting_parse_timezone.strip() or "UTC")
+                except Exception:
+                    _user_tz = _IST
+                free = find_free_slots(busy, datetime.now(timezone.utc), tz=_user_tz)
 
                 # 1) Explicit date + range: "April 10 1pm to 2pm" (uses meeting_parse_timezone)
                 window = parse_meeting_window(payload)
-                # 2) Fallback: "tomorrow at 3pm" etc. (IST-relative)
+                # 2) Fallback: "tomorrow at 3pm" etc. (user-timezone-relative)
                 if window is None:
-                    requested_dt = detect_requested_time(payload, now=datetime.now(_IST))
+                    requested_dt = detect_requested_time(payload, now=datetime.now(_user_tz))
                     if requested_dt is not None:
                         s_utc = requested_dt.astimezone(timezone.utc)
                         e_utc = s_utc + timedelta(hours=1)
@@ -601,7 +616,7 @@ What is the best action to take? Respond with JSON only."""
         base = plan["confidence"]
         urgency_keywords = event.get("urgency_keywords", [])
 
-        # Urgency multiplier: +10% per keyword, max +30%
+        # Urgency multiplier: +10 percentage points per keyword, capped at +30 pp (3 keywords)
         keyword_count = len(urgency_keywords)
         urgency_mult = 1.0 + min(keyword_count * 0.1, 0.3)
 
@@ -626,11 +641,6 @@ What is the best action to take? Respond with JSON only."""
             "approval_rate": round(approval_rate, 2),
         }
 
-        if adjusted > 90:
-            plan["requires_approval"] = False
-        elif adjusted >= 70:
-            plan["requires_approval"] = True
-        else:
-            plan["requires_approval"] = True
+        plan["requires_approval"] = adjusted <= 90
 
         return plan

@@ -343,16 +343,20 @@ def find_free_slots(
     from_dt: datetime,
     n: int = 3,
     duration_hours: float = 1.0,
+    tz: Any = None,
 ) -> list[datetime]:
     """
     Return up to `n` available start times (UTC) of `duration_hours` length
     within working hours (9 AM – 6 PM local) over the next 3 days.
+    `tz` sets the local timezone for working-hour calculation (defaults to IST).
     """
+    if tz is None:
+        tz = _IST
     duration = timedelta(hours=duration_hours)
     found: list[datetime] = []
 
     # Start search from next whole hour
-    check = from_dt.astimezone(_IST).replace(minute=0, second=0, microsecond=0)
+    check = from_dt.astimezone(tz).replace(minute=0, second=0, microsecond=0)
     if from_dt.minute > 0:
         check += timedelta(hours=1)
 

@@ -82,10 +82,9 @@ class Notifier:
         voice_url = f"{base_url}/api/twilio/voice/{plan_id}"
 
         # Persist plan for the webhook (5-minute TTL)
-        import json
         from memory.redis_client import RedisClient
         redis = RedisClient.get_instance()
-        await redis._redis.setex(f"voice:plan:{plan_id}", 300, json.dumps(plan))
+        await redis.set_voice_plan(plan_id, plan)
 
         try:
             call = await asyncio.to_thread(
